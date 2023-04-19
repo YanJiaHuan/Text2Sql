@@ -488,8 +488,6 @@ def evaluate(gold, predict, db_dir, etype, table):
     # glist = [("SELECT max(SHARE) ,  min(SHARE) FROM performance WHERE TYPE != 'Live final'", "orchestra")]
     plist = predict
     glist = gold
-    for j,k in zip(plist,glist):
-        print(j,k)
     kmaps = build_foreign_key_map_from_json(table)
     evaluator = Evaluator()
 
@@ -507,7 +505,7 @@ def evaluate(gold, predict, db_dir, etype, table):
 
     eval_err_num = 0
     for p, g in zip(plist, glist):
-        p_str = p[0]
+        p_str = p
         g_str, db = g
         db_name = db
         db = os.path.join(db_dir, db, db + ".sqlite")
@@ -552,6 +550,7 @@ def evaluate(gold, predict, db_dir, etype, table):
         p_sql = rebuild_sql_col(p_valid_col_units, p_sql, kmap)
 
         if etype in ["all", "exec"]:
+            # print(p_str,g_str,p_sql,g_sql)
             exec_score = eval_exec_match(db, p_str, g_str, p_sql, g_sql)
             # print(exec_score)
             if exec_score:

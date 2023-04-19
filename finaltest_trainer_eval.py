@@ -27,9 +27,10 @@ def preprocess_function(example, tokenizer, db_id_to_content):
     }
 
 def main():
-    # model_name = 't5-3b'
-    model_name = "./checkpoints/T5-3B/batch2_zero3_epoch30_lr5e5/checkpoint-33000"
-    tokenizer_name = "tscholak/cxmefzzi"
+    model_name = 't5-3b'
+    tokenizer_name = 't5-3b'
+    # model_name = "./checkpoints/T5-3B/batch2_zero3_epoch30_lr5e5/checkpoint-33000"
+    # tokenizer_name = "tscholak/cxmefzzi"
     tokenizer = T5Tokenizer.from_pretrained(tokenizer_name,model_max_length=512)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dataset = load_dataset("spider", split='train').shuffle(seed=42)
@@ -37,7 +38,7 @@ def main():
     eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(50))
     eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
     training_args = Seq2SeqTrainingArguments(
-        output_dir="checkpoints/T5-3B/batch2_zero3_epoch30_lr1e4_seq2seq",
+        output_dir="checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq",
         deepspeed="./deepspeed_config.json",
         num_train_epochs=50,
         learning_rate=1e-4,
@@ -46,8 +47,8 @@ def main():
         gradient_accumulation_steps=1,
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=10,
-        save_steps=10000,# Add eval_steps parameter
+        eval_steps=1000,
+        save_steps=1000,# Add eval_steps parameter
         save_strategy="steps",
         disable_tqdm=False,
         load_best_model_at_end=True,
