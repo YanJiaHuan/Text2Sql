@@ -537,8 +537,10 @@ def evaluate(gold, predict, db_dir, etype, kmaps):
             }
             eval_err_num += 1
             print("eval_err_num:{}".format(eval_err_num))
-        kmap = kmaps[db_name]
+        # kmap = kmaps[db_name]
         # kmap = kmaps.get(db_name)
+        kmap = next((item for item in kmaps if item["db_name"] == db_name), None)
+
         g_valid_col_units = build_valid_col_units(g_sql['from']['table_units'], schema)
         g_sql = rebuild_sql_val(g_sql)
         g_sql = rebuild_sql_col(g_valid_col_units, g_sql, kmap)
