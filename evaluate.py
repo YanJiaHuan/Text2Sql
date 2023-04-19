@@ -65,7 +65,7 @@ def main():
         etype = 'all'
         kmaps = './tables.json'
         score = evaluate(decoded_labels, decoded_preds,db_dir,etype,kmaps)
-        return {"custom_metric": score}
+        return {"exec": score}
 
 
     # os.environ["MASTER_PORT"] = "29501"
@@ -77,7 +77,6 @@ def main():
         compute_metrics=compute_custom_metric,
     )
     evaluation_result = trainer.evaluate()
-    print("Evaluation Result:", evaluation_result)
 
 
 if __name__ == "__main__":

@@ -432,7 +432,10 @@ class Evaluator:
 
 
 def isValidSQL(sql, db):
-    conn = sqlite3.connect(db)
+    # conn = sqlite3.connect(db)
+    conn = sqlite3.connect(db, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn.text_factory = lambda x: str(x, 'utf-8', 'ignore')
+
     cursor = conn.cursor()
     try:
         cursor.execute(sql)
@@ -481,10 +484,11 @@ def evaluate(gold, predict, db_dir, etype, table):
     #
     # with open(predict) as f:
     #     plist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
-    glist = gold
-    plist = predict
     # plist = [("select max(Share),min(Share) from performance where Type != 'terminal'", "orchestra")]
     # glist = [("SELECT max(SHARE) ,  min(SHARE) FROM performance WHERE TYPE != 'Live final'", "orchestra")]
+    plist = predict
+    glist = gold
+    kmaps = build_foreign_key_map_from_json(table)
     evaluator = Evaluator()
 
     levels = ['easy', 'medium', 'hard', 'extra', 'all']
@@ -501,14 +505,12 @@ def evaluate(gold, predict, db_dir, etype, table):
 
     eval_err_num = 0
     for p, g in zip(plist, glist):
-        p_str = p
-        g_str,db = g
+        p_str = p[0]
+        g_str, db = g
         db_name = db
         db = os.path.join(db_dir, db, db + ".sqlite")
         schema = Schema(get_schema(db))
-
         g_sql = get_sql(schema, g_str)
-
         hardness = evaluator.eval_hardness(g_sql)
         scores[hardness]['count'] += 1
         scores['all']['count'] += 1
@@ -535,8 +537,10 @@ def evaluate(gold, predict, db_dir, etype, table):
             "union": None,
             "where": []
             }
+            eval_err_num += 1
+            # print("eval_err_num:{}".format(eval_err_num))
 
-        kmaps = build_foreign_key_map_from_json(table)
+        # rebuild sql for value evaluation
         kmap = kmaps[db_name]
         g_valid_col_units = build_valid_col_units(g_sql['from']['table_units'], schema)
         g_sql = rebuild_sql_val(g_sql)
@@ -547,6 +551,7 @@ def evaluate(gold, predict, db_dir, etype, table):
 
         if etype in ["all", "exec"]:
             exec_score = eval_exec_match(db, p_str, g_str, p_sql, g_sql)
+            # print(exec_score)
             if exec_score:
                 scores[hardness]['exec'] += 1.0
                 scores['all']['exec'] += 1.0
@@ -554,6 +559,10 @@ def evaluate(gold, predict, db_dir, etype, table):
         if etype in ["all", "match"]:
             exact_score = evaluator.eval_exact_match(p_sql, g_sql)
             partial_scores = evaluator.partial_scores
+            # if exact_score == 0:
+            #     print("{} pred: {}".format(hardness,p_str))
+            #     print("{} gold: {}".format(hardness,g_str))
+            #     print("")
             scores[hardness]['exact'] += exact_score
             scores['all']['exact'] += exact_score
             for type_ in partial_types:
@@ -605,11 +614,9 @@ def evaluate(gold, predict, db_dir, etype, table):
                     scores[level]['partial'][type_]['f1'] = \
                         2.0 * scores[level]['partial'][type_]['acc'] * scores[level]['partial'][type_]['rec'] / (
                         scores[level]['partial'][type_]['rec'] + scores[level]['partial'][type_]['acc'])
-
-    rounded_value = round(scores['all']['exec'], 2)
-    result = str(rounded_value)
-    return result
-    # return str(scores['all']['exec'])[:-1]
+    score = round(scores['all']['exec'], 4)
+    return score
+    # print(f"{score},{type(score)}")
 
 
 def eval_exec_match(db, p_str, g_str, pred, gold):
@@ -618,6 +625,10 @@ def eval_exec_match(db, p_str, g_str, pred, gold):
     in the corresponding index. Currently not support multiple col_unit(pairs).
     """
     conn = sqlite3.connect(db)
+
+    # conn = sqlite3.connect(db, detect_types=sqlite3.PARSE_DECLTYPES)
+    # conn.text_factory = lambda x: str(x, 'utf-8', 'ignore')
+
     cursor = conn.cursor()
     try:
         cursor.execute(p_str)
@@ -873,4 +884,4 @@ if __name__ == "__main__":
 # checkpoint-20000
 # CUDA_VISIBLE_DEVICES=0 python Evaluation.py --gold './gold_example.txt' --pred './pred_example.txt' --etype 'all' --db './database' --table './tables.json'
 
-# CUDA_VISIBLE_DEVICES=3 python Evaluation.py --gold './Evaluation_file/gold_example_1e4__checkpoint-5000.txt' --pred './Evaluation_file/pred_example_1e4__checkpoint-5000.txt' --etype 'all' --db './database' --table './tables.json'
+ # CUDA_VISIBLE_DEVICES=3 python Evaluation.py --gold './Evaluation_file/gold_example_1e4__checkpoint-16000.txt' --pred './Evaluation_file/pred_example_1e4__checkpoint-16000.txt' --etype 'exec' --db './database' --table './tables.json'

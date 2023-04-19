@@ -545,6 +545,7 @@ def evaluate(gold, predict, db_dir, etype, kmaps):
 
         if etype in ["all", "exec"]:
             exec_score = eval_exec_match(db, p_str, g_str, p_sql, g_sql)
+            # print(exec_score)
             if exec_score:
                 scores[hardness]['exec'] += 1.0
                 scores['all']['exec'] += 1.0
@@ -864,7 +865,11 @@ if __name__ == "__main__":
     assert etype in ["all", "exec", "match"], "Unknown evaluation method"
 
     kmaps = build_foreign_key_map_from_json(table)
-
+    print(f"gold:{gold},goldtype:{type(gold)}")
+    print(f"pred:{pred},predtype:{type(pred)}")
+    print(f"db_dir:{db_dir},dbtype:{type(db_dir)}")
+    print(f"etype:{etype},etype:{type(etype)}")
+    print(f"kmaps:{kmaps},kmapstype:{type(kmaps)}")
     evaluate(gold, pred, db_dir, etype, kmaps)
 
 # 1e4_
