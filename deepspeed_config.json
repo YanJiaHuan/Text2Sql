@@ -1,0 +1,25 @@
+{
+  "fp16": {
+        "enabled": "auto"
+    },
+  "train_micro_batch_size_per_gpu": "auto",
+  "optimizer": {
+    "type": "AdamW",
+    "params": {
+      "lr": 1e-4
+    }
+  },
+  "zero_optimization": {
+    "stage": 2,
+    "offload_optimizer": {
+      "device": "cpu",
+      "pin_memory": true
+    },
+    "overlap_comm": true,
+    "reduce_scatter": true,
+    "reduce_bucket_size": 2e8,
+    "contiguous_gradients": true,
+    "sub_group_size": 1e9
+  }
+}
+
