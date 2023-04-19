@@ -47,8 +47,8 @@ def main():
         gradient_accumulation_steps=1,
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=1000,
-        save_steps=1000,# Add eval_steps parameter
+        eval_steps=10,
+        save_steps=10,# Add eval_steps parameter
         save_strategy="steps",
         disable_tqdm=False,
         load_best_model_at_end=True,
@@ -56,25 +56,31 @@ def main():
         # save_total_limit=1,  # Only save the best model
     )
 
+    from torch import nn
+
     def compute_custom_metric(eval_pred):
-        # print('start computing metric...')
-        # decoded_preds = tokenizer.decode(eval_pred.predictions, skip_special_tokens=True)
-        decoded_preds = tokenizer.batch_decode(eval_pred.predictions, skip_special_tokens=True)
+        criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
+
+        logits, labels = eval_pred
+        logits = logits.view(-1, logits.shape[-1])
+        labels = labels.view(-1)
+        eval_loss = criterion(logits, labels).item()
+
+        decoded_preds = tokenizer.batch_decode(logits.argmax(dim=-1), skip_special_tokens=True)
         decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
 
-        # print(decoded_preds)
         decoded_labels = eval_dataset[:]['query']
 
         eval_dataset.set_format(type='torch', columns=['db_id'])
         db_ids = eval_dataset[:]['db_id']
 
         gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
-        # print(gold_queries_and_db_ids)
         db_dir = './database'
         etype = 'all'
         table = './tables.json'
         score = evaluate(gold_queries_and_db_ids, decoded_preds, db_dir, etype, table)
-        return {"exec": score}
+
+        return {"eval_exec": score, "eval_loss": eval_loss}
 
     config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
     config.max_length = 512
