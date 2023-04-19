@@ -34,7 +34,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dataset = load_dataset("spider", split='train').shuffle(seed=42)
     dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
-    eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(500))
+    eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(50))
     eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
     training_args = Seq2SeqTrainingArguments(
         output_dir="checkpoints/T5-3B/batch2_zero3_epoch30_lr1e4_seq2seq",
@@ -42,6 +42,7 @@ def main():
         num_train_epochs=50,
         learning_rate=1e-4,
         per_device_train_batch_size=1,
+        per_device_eval_batch_size=2,
         gradient_accumulation_steps=1,
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
@@ -55,19 +56,19 @@ def main():
     )
 
     def compute_custom_metric(eval_pred):
-        print('start computing metric...')
+        # print('start computing metric...')
         # decoded_preds = tokenizer.decode(eval_pred.predictions, skip_special_tokens=True)
-        decoded_preds = [''.join(tokenizer.decode(pred, skip_special_tokens=True).split()) for pred in
-                         eval_pred.predictions]
+        decoded_preds = tokenizer.batch_decode(eval_pred.predictions, skip_special_tokens=True)
+        decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
 
-        print(decoded_preds)
+        # print(decoded_preds)
         decoded_labels = eval_dataset[:]['query']
 
         eval_dataset.set_format(type='torch', columns=['db_id'])
         db_ids = eval_dataset[:]['db_id']
 
         gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
-        print(gold_queries_and_db_ids)
+        # print(gold_queries_and_db_ids)
         db_dir = './database'
         etype = 'all'
         table = './tables.json'
@@ -75,6 +76,7 @@ def main():
         return {"exec": score}
 
     config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
+    config.max_length = 512
     model = T5ForConditionalGeneration.from_pretrained(model_name, config=config).to(device)
     trainer = Seq2SeqTrainer(
         model=model,
@@ -83,7 +85,6 @@ def main():
         train_dataset=dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_custom_metric,
-        generation_kwargs={"max_length": 512},
     )
 
     trainer.train()

@@ -488,6 +488,8 @@ def evaluate(gold, predict, db_dir, etype, table):
     # glist = [("SELECT max(SHARE) ,  min(SHARE) FROM performance WHERE TYPE != 'Live final'", "orchestra")]
     plist = predict
     glist = gold
+    for j,k in zip(plist,glist):
+        print(j,k)
     kmaps = build_foreign_key_map_from_json(table)
     evaluator = Evaluator()
 
@@ -614,7 +616,7 @@ def evaluate(gold, predict, db_dir, etype, table):
                     scores[level]['partial'][type_]['f1'] = \
                         2.0 * scores[level]['partial'][type_]['acc'] * scores[level]['partial'][type_]['rec'] / (
                         scores[level]['partial'][type_]['rec'] + scores[level]['partial'][type_]['acc'])
-    score = round(scores['all']['exec'], 4)
+    score = round(scores['all']['exec'], 10)
     return score
     # print(f"{score},{type(score)}")
 
