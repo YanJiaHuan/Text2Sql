@@ -475,7 +475,7 @@ def print_scores(scores, etype):
             print("{:20} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f}".format(type_, *this_scores))
 
 
-def evaluate(gold, predict, db_dir, etype, kmaps):
+def evaluate(gold, predict, db_dir, etype, table):
     # with open(gold) as f:
     #     glist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
     #
@@ -535,12 +535,9 @@ def evaluate(gold, predict, db_dir, etype, kmaps):
             "union": None,
             "where": []
             }
-            eval_err_num += 1
-            print("eval_err_num:{}".format(eval_err_num))
-        # kmap = kmaps[db_name]
-        # kmap = kmaps.get(db_name)
-        kmap = next((item for item in kmaps if item["db_name"] == db_name), None)
 
+        kmaps = build_foreign_key_map_from_json(table)
+        kmap = kmaps[db_name]
         g_valid_col_units = build_valid_col_units(g_sql['from']['table_units'], schema)
         g_sql = rebuild_sql_val(g_sql)
         g_sql = rebuild_sql_col(g_valid_col_units, g_sql, kmap)
@@ -557,10 +554,6 @@ def evaluate(gold, predict, db_dir, etype, kmaps):
         if etype in ["all", "match"]:
             exact_score = evaluator.eval_exact_match(p_sql, g_sql)
             partial_scores = evaluator.partial_scores
-            if exact_score == 0:
-                print("{} pred: {}".format(hardness,p_str))
-                print("{} gold: {}".format(hardness,g_str))
-                print("")
             scores[hardness]['exact'] += exact_score
             scores['all']['exact'] += exact_score
             for type_ in partial_types:
@@ -613,7 +606,10 @@ def evaluate(gold, predict, db_dir, etype, kmaps):
                         2.0 * scores[level]['partial'][type_]['acc'] * scores[level]['partial'][type_]['rec'] / (
                         scores[level]['partial'][type_]['rec'] + scores[level]['partial'][type_]['acc'])
 
-    return str(scores['all']['exec'])[:-1]
+    rounded_value = round(scores['all']['exec'], 2)
+    result = str(rounded_value)
+    return result
+    # return str(scores['all']['exec'])[:-1]
 
 
 def eval_exec_match(db, p_str, g_str, pred, gold):

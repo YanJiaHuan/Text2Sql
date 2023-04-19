@@ -22,42 +22,43 @@ def preprocess_function(example, tokenizer, db_id_to_content):
         "input_ids": input_tokenized["input_ids"],
         "attention_mask": input_tokenized["attention_mask"],
         "labels": output_tokenized["input_ids"],
-        "db_id": example["db_id"]
+        "db_id": example["db_id"],
+        "gold_query": example["query"]
     }
 
 def main():
-    model_name = "t5-3B"
-    tokenizer = T5Tokenizer.from_pretrained(model_name)
+    # model_name = 't5-3b'
+    model_name = "tscholak/cxmefzzi"
+    tokenizer = T5Tokenizer.from_pretrained(model_name,model_max_length=512)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dataset = load_dataset("spider", split='train').shuffle(seed=42)
     dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
-    eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(20))
+    eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42)
     eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
     training_args = Seq2SeqTrainingArguments(
         output_dir="checkpoints/T5-3B/batch2_zero3_epoch30_lr1e4_seq2seq",
-        deepspeed="./deepspeed_config_zero3.json",
+        deepspeed="./deepspeed_config.json",
         num_train_epochs=50,
         learning_rate=1e-4,
         per_device_train_batch_size=1,
         gradient_accumulation_steps=1,
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=1,
-        save_steps=100,# Add eval_steps parameter
+        eval_steps=50,
+        save_steps=10000,# Add eval_steps parameter
         save_strategy="steps",
         disable_tqdm=False,
         load_best_model_at_end=True,
-        logging_steps=100,
+        logging_steps=50,
         predict_with_generate=True,
         # save_total_limit=1,  # Only save the best model
     )
 
     def compute_custom_metric(eval_pred):
-        decoded_labels = tokenizer.batch_decode(eval_pred.label_ids, skip_special_tokens=True)
         decoded_preds = tokenizer.batch_decode(eval_pred.predictions, skip_special_tokens=True)
 
         decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
-        decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
+        decoded_labels = eval_dataset[:]['query']
 
         eval_dataset.set_format(type='torch', columns=['db_id'])
         db_ids = eval_dataset[:]['db_id']
@@ -65,10 +66,8 @@ def main():
         gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
         db_dir = './database'
         etype = 'all'
-        kmaps_name = './tables.json'
-        with open(kmaps_name, 'r') as f:
-            kmaps = json.load(f)
-        score = evaluate(gold_queries_and_db_ids, decoded_preds, db_dir, etype, kmaps)
+        table = './tables.json'
+        score = evaluate(gold_queries_and_db_ids, decoded_preds, db_dir, etype, table)
         return {"custom_metric": score}
 
     config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
@@ -82,8 +81,8 @@ def main():
         compute_metrics=compute_custom_metric,
     )
 
-    # trainer.train()
-    trainer.evaluate()
+    trainer.train()
+    # trainer.evaluate()
     # save tokenizer
     tokenizer_output_dir = training_args.output_dir + "/tokenizer"
     os.makedirs(tokenizer_output_dir, exist_ok=True)
