@@ -65,8 +65,9 @@ def main():
         gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
         db_dir = './database'
         etype = 'all'
-        kmaps = './tables.json'
-
+        kmaps_name = './tables.json'
+        with open(kmaps_name, 'r') as f:
+            kmaps = json.load(f)
         score = evaluate(gold_queries_and_db_ids, decoded_preds, db_dir, etype, kmaps)
         return {"custom_metric": score}
 

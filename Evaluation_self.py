@@ -25,7 +25,7 @@ import json
 import sqlite3
 import traceback
 import argparse
-
+import json
 from process_sql import tokenize, get_schema, get_tables_with_alias, Schema, get_sql
 
 # Flag to disable value evaluation
@@ -537,10 +537,8 @@ def evaluate(gold, predict, db_dir, etype, kmaps):
             }
             eval_err_num += 1
             print("eval_err_num:{}".format(eval_err_num))
-
-        # rebuild sql for value evaluation
-        # kmap = kmaps[db_name]
-        kmap = kmaps.get(db_name)
+        kmap = kmaps[db_name]
+        # kmap = kmaps.get(db_name)
         g_valid_col_units = build_valid_col_units(g_sql['from']['table_units'], schema)
         g_sql = rebuild_sql_val(g_sql)
         g_sql = rebuild_sql_col(g_valid_col_units, g_sql, kmap)
