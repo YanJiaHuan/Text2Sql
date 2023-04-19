@@ -58,12 +58,16 @@ def main():
 
     from torch import nn
 
+    from torch import nn
+
+    from torch import nn
+
     def compute_custom_metric(eval_pred):
         criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
 
         logits, labels = eval_pred
-        logits = logits.view(-1, logits.shape[-1])
-        labels = labels.view(-1)
+        logits = torch.tensor(logits, dtype=torch.float32).view(-1, logits.shape[-1])
+        labels = torch.tensor(labels, dtype=torch.long).view(-1)
         eval_loss = criterion(logits, labels).item()
 
         decoded_preds = tokenizer.batch_decode(logits.argmax(dim=-1), skip_special_tokens=True)
