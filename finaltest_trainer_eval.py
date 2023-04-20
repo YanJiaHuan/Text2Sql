@@ -1,9 +1,12 @@
 import json
 from transformers import T5ForConditionalGeneration, T5Tokenizer,T5Config, Seq2SeqTrainingArguments, Seq2SeqTrainer
+from typing import List, Optional
 from datasets import load_dataset
 import os
 import torch
 import nltk
+from torch.utils.data import DataLoader
+from transformers.trainer_utils import EvalLoopOutput
 from Evaluation_self import evaluate
 
 with open('./tables_new_picard.json', 'r') as f:
@@ -37,6 +40,7 @@ def main():
     dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
     eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(50))
     eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
+
     training_args = Seq2SeqTrainingArguments(
         output_dir="checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq",
         deepspeed="./deepspeed_config.json",
@@ -50,27 +54,15 @@ def main():
         eval_steps=10,
         save_steps=10,# Add eval_steps parameter
         save_strategy="steps",
-        disable_tqdm=False,
-        load_best_model_at_end=True,
+        disable_tqdm=True,
+        # load_best_model_at_end=True,
         predict_with_generate=True,
         # save_total_limit=1,  # Only save the best model
     )
 
-    from torch import nn
-
-    from torch import nn
-
-    from torch import nn
-
     def compute_custom_metric(eval_pred):
-        criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
 
-        logits, labels = eval_pred
-        logits = torch.tensor(logits, dtype=torch.float32).view(-1, logits.shape[-1])
-        labels = torch.tensor(labels, dtype=torch.long).view(-1)
-        eval_loss = criterion(logits, labels).item()
-
-        decoded_preds = tokenizer.batch_decode(logits.argmax(dim=-1), skip_special_tokens=True)
+        decoded_preds = tokenizer.batch_decode(eval_pred.predictions, skip_special_tokens=True)
         decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
 
         decoded_labels = eval_dataset[:]['query']
@@ -83,8 +75,8 @@ def main():
         etype = 'all'
         table = './tables.json'
         score = evaluate(gold_queries_and_db_ids, decoded_preds, db_dir, etype, table)
-
-        return {"eval_exec": score, "eval_loss": eval_loss}
+        print(f"Execution Accuracy: {score}")
+        return {"exec": score}
 
     config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
     config.max_length = 512
