@@ -615,6 +615,7 @@ def evaluate(gold, predict, db_dir, etype, table):
                     scores[level]['partial'][type_]['f1'] = \
                         2.0 * scores[level]['partial'][type_]['acc'] * scores[level]['partial'][type_]['rec'] / (
                         scores[level]['partial'][type_]['rec'] + scores[level]['partial'][type_]['acc'])
+
     score = round(scores['all']['exec'], 10)
     return score
     # print(f"{score},{type(score)}")
