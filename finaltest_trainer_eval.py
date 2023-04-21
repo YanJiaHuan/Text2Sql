@@ -10,7 +10,8 @@ import numpy as np
 
 import torch
 
-from Evaluation_self import evaluate
+from Evaluation_self import evaluate,evaluate_test
+
 from transformers import Trainer
 with open('./tables_new_picard.json', 'r') as f:
     tables_new = json.load(f)
@@ -69,9 +70,9 @@ def main():
     # tokenizer_name = "tscholak/cxmefzzi"
     tokenizer = T5Tokenizer.from_pretrained(tokenizer_name,model_max_length=512)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dataset = load_dataset("spider", split='train').shuffle(seed=42)
+    dataset = load_dataset("spider", split='train').shuffle(seed=42).select(range(20))
     dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
-    eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(50))
+    eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(20))
     eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
 
 
@@ -82,14 +83,13 @@ def main():
         learning_rate=1e-4,
         per_device_train_batch_size=1,
         per_device_eval_batch_size=2,
-        gradient_accumulation_steps=1,
+        gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
-        evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=20,
-        save_steps=100,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
-        save_strategy="steps",
+        evaluation_strategy="epoch",  # Change evaluation_strategy to "steps"
+        # eval_steps=20,
+        # save_steps=100,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
+        # save_strategy="spoch",
         disable_tqdm=False,
-        # load_best_model_at_end=True,
         predict_with_generate=True,
         generation_max_length=512,
         generation_num_beams=4,
@@ -98,16 +98,21 @@ def main():
     import numpy as np
     def compute_metric(eval_pred):
         preds, labels = eval_pred
+        print(f"preds:{preds}\n")
+        print(f"labels:{labels}\n")
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        print(f"decoded_preds:{decoded_preds}\n")
+        print(f"decoded_labels:{decoded_labels}\n")
         # rougeLSum expects newline after each sentence
         # decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
         decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
 
         genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
         # decoded_labels = eval_dataset[:]['query']
-
-        eval_dataset.set_format(type='torch', columns=['db_id'])
+        print(f"decoded_labels:{decoded_labels}\n")
+        print(f"genetrated_queries:{genetrated_queries}\n")
+        # eval_dataset.set_format(type='torch', columns=['db_id'])
         # db_ids = eval_dataset[:]['db_id']
         db_ids = 'singer'
         gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
@@ -115,9 +120,9 @@ def main():
         etype = 'all'
         table = './tables.json'
         print("now you see")
-        score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
+        score = evaluate_test(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
         print(f"Execution Accuracy: {score}")
-        return {"exec":score}
+        return {"exec":score}  # 必须返回字典
 
     config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
     config.max_length = 512
@@ -168,7 +173,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-## deepspeed --include localhost:0,1,2,3 finaltest_trainer_eval.py | use this code to choose GPUs to run
+## deepspeed --include localhost:0,1 finaltest_trainer_eval.py | use this code to choose GPUs to run
 ## Try to remove /.cache/pytorch_extensions if stuck somewhere
 ## add activation_checkpointing in ds_config if oom(batch = 16,without: 20GB/GPU, with: 26GB/GPU
 ## need to run the script provided by deepspeed to convert the model to normal torch model

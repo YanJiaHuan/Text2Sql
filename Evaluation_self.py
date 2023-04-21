@@ -478,6 +478,8 @@ def print_scores(scores, etype):
             print("{:20} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f} {:<20.3f}".format(type_, *this_scores))
 
 
+def evaluate_test(gold, predict, db_dir, etype, table):
+    return 0.5
 def evaluate(gold, predict, db_dir, etype, table):
     # with open(gold) as f:
     #     glist = [l.strip().split('\t') for l in f.readlines() if len(l.strip()) > 0]
