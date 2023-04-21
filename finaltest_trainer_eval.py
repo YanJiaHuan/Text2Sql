@@ -96,26 +96,28 @@ def main():
         # save_total_limit=1,  # Only save the best model
     )
     import numpy as np
-    # def compute_metric(eval_pred):
-    #     preds, labels = eval_pred
-    #     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-    #     # rougeLSum expects newline after each sentence
-    #     # decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
-    #     # decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels
-    #
-    #     genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
-    #     decoded_labels = eval_dataset[:]['query']
-    #
-    #     eval_dataset.set_format(type='torch', columns=['db_id'])
-    #     db_ids = eval_dataset[:]['db_id']
-    #
-    #     gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
-    #     db_dir = './database'
-    #     etype = 'all'
-    #     table = './tables.json'
-    #     score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
-    #     print(f"Execution Accuracy: {score}")
-    #     return {"exec":score}
+    def compute_metric(eval_pred):
+        preds, labels = eval_pred
+        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        # rougeLSum expects newline after each sentence
+        # decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
+        decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
+
+        genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
+        # decoded_labels = eval_dataset[:]['query']
+
+        eval_dataset.set_format(type='torch', columns=['db_id'])
+        # db_ids = eval_dataset[:]['db_id']
+        db_ids = 'singer'
+        gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
+        db_dir = './database'
+        etype = 'all'
+        table = './tables.json'
+        print("now you see")
+        score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
+        print(f"Execution Accuracy: {score}")
+        return {"exec":score}
 
     config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
     config.max_length = 512
@@ -152,12 +154,13 @@ def main():
 
 
 
-    trainer = SpiderTrainer(
+    trainer = Seq2SeqTrainer(
         model=model,
         tokenizer=tokenizer,
         args=training_args,
         train_dataset=dataset,
         eval_dataset=eval_dataset,
+        compute_metrics=compute_metric,
         # callbacks=[EvalCallback(model,tokenizer,eval_dataset)],
     )
     trainer.train()
