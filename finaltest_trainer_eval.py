@@ -30,20 +30,63 @@ logger = logging.getLogger(__name__)
 
 
 
-class EvalPrediction(NamedTuple):
-    predictions: List[str]
-    label_ids: np.ndarray
-    metas: List[dict]
+from transformers import Seq2SeqTrainer
 
-class SpiderTrainer(Seq2SeqTrainer):
 
-    def _compute_metrics(self, eval_prediction: EvalPrediction) -> dict:
-        raise NotImplementedError()
+# 为了把db_id加入到评估中，我们需要自定义一个Seq2SeqTrainer
+class CustomSeq2SeqTrainer(Seq2SeqTrainer):
+    def evaluation_loop(
+        self,
+        dataloader,
+        description,
+        prediction_loss_only=False,
+        ignore_keys=None,
+        metric_key_prefix=None,
+    ):
+        # Copied from the parent class's evaluation_loop
+        logs = {}
+        self.callback_handler.eval_dataloader = dataloader
+        model = self.model
 
-    def _post_process_function(
-            self, examples: Dataset, features: Dataset, predictions: np.ndarray, stage: str
-    ) -> EvalPrediction:
-        raise NotImplementedError()
+        model.eval()
+        compute_metrics = self.compute_metrics
+        eval_losses = []
+        preds = None
+        all_labels = None
+        db_ids = None
+        for step, inputs in enumerate(dataloader):
+            with torch.no_grad():
+                loss, labels, logits = self.prediction_step(model, inputs, prediction_loss_only)
+                if loss is not None:
+                    eval_losses.append(loss.mean().item())
+            if not prediction_loss_only:
+                preds = logits if preds is None else np.concatenate((preds, logits), axis=0)
+                all_labels = labels if all_labels is None else np.concatenate((all_labels, labels), axis=0)
+                if 'db_id' in inputs:
+                    current_db_ids = inputs['db_id'].numpy()
+                    db_ids = current_db_ids if db_ids is None else np.concatenate((db_ids, current_db_ids), axis=0)
+
+        # Create the EvalPredictionWithDbId object with db_ids
+        eval_loop_output = EvalPredictionWithDbId(
+            predictions=preds,
+            label_ids=all_labels,
+            db_ids=db_ids,
+        )
+
+        # Compute the metrics with the custom compute_metric function
+        metrics = self.compute_metrics(eval_loop_output)
+
+        return EvalLoopOutput(metrics, eval_losses, len(eval_dataset), prediction_loss_only)
+
+
+
+# A custom data structure to include 'db_id'
+class EvalPredictionWithDbId:
+    def __init__(self, predictions, label_ids, db_ids):
+        self.predictions = predictions
+        self.label_ids = label_ids
+        self.db_ids = db_ids
+
 
 
 
@@ -93,34 +136,48 @@ def main():
         predict_with_generate=True,
         generation_max_length=512,
         generation_num_beams=4,
+        include_inputs_for_metrics=True,
         # save_total_limit=1,  # Only save the best model
     )
-    import numpy as np
+    import re
     def compute_metric(eval_pred):
-        preds, labels = eval_pred
-        print(f"preds:{preds}\n")
-        print(f"labels:{labels}\n")
+        preds=eval_pred.predictions
+        labels=eval_pred.label_ids
+        db_ids=eval_pred.inputs
+        # print(f"db_id:{db_ids}\n")
+        # print(f"preds:{preds}\n")
+        # print(f"labels:{labels}\n")
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-        print(f"decoded_preds:{decoded_preds}\n")
-        print(f"decoded_labels:{decoded_labels}\n")
+        decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=True)
+        db_id = []
+        for question in decoded_inputs:
+            result = re.search(r'\|(.+?)\|', question)
+            db_id.append(result.group(1).strip())
+        # print(f"db_id:{db_id}\n")
+
+        # print(f"decoded_preds:{decoded_preds}\n")
+        # print(f"decoded_labels:{decoded_labels}\n")
+        # print(f"decoded_inputs:{decoded_inputs}\n")
         # rougeLSum expects newline after each sentence
         # decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
-        decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
+        ##########下面的函数，功能存疑
+        # decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
 
         genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
-        # decoded_labels = eval_dataset[:]['query']
-        print(f"decoded_labels:{decoded_labels}\n")
-        print(f"genetrated_queries:{genetrated_queries}\n")
+        # print(f"decoded_labels:{decoded_labels}\n")
+        # print(f"genetrated_queries:{genetrated_queries}\n")
         # eval_dataset.set_format(type='torch', columns=['db_id'])
         # db_ids = eval_dataset[:]['db_id']
-        db_ids = 'singer'
-        gold_queries_and_db_ids = list(zip(decoded_labels, db_ids))
+        # print(len(decoded_labels))
+        # print(len(db_id))
+        gold_queries_and_db_ids = list(zip(decoded_labels, db_id))
+        # print(gold_queries_and_db_ids)
         db_dir = './database'
         etype = 'all'
         table = './tables.json'
         print("now you see")
-        score = evaluate_test(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
+        score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
         print(f"Execution Accuracy: {score}")
         return {"exec":score}  # 必须返回字典
 
