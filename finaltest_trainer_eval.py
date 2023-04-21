@@ -33,61 +33,6 @@ logger = logging.getLogger(__name__)
 from transformers import Seq2SeqTrainer
 
 
-# 为了把db_id加入到评估中，我们需要自定义一个Seq2SeqTrainer
-class CustomSeq2SeqTrainer(Seq2SeqTrainer):
-    def evaluation_loop(
-        self,
-        dataloader,
-        description,
-        prediction_loss_only=False,
-        ignore_keys=None,
-        metric_key_prefix=None,
-    ):
-        # Copied from the parent class's evaluation_loop
-        logs = {}
-        self.callback_handler.eval_dataloader = dataloader
-        model = self.model
-
-        model.eval()
-        compute_metrics = self.compute_metrics
-        eval_losses = []
-        preds = None
-        all_labels = None
-        db_ids = None
-        for step, inputs in enumerate(dataloader):
-            with torch.no_grad():
-                loss, labels, logits = self.prediction_step(model, inputs, prediction_loss_only)
-                if loss is not None:
-                    eval_losses.append(loss.mean().item())
-            if not prediction_loss_only:
-                preds = logits if preds is None else np.concatenate((preds, logits), axis=0)
-                all_labels = labels if all_labels is None else np.concatenate((all_labels, labels), axis=0)
-                if 'db_id' in inputs:
-                    current_db_ids = inputs['db_id'].numpy()
-                    db_ids = current_db_ids if db_ids is None else np.concatenate((db_ids, current_db_ids), axis=0)
-
-        # Create the EvalPredictionWithDbId object with db_ids
-        eval_loop_output = EvalPredictionWithDbId(
-            predictions=preds,
-            label_ids=all_labels,
-            db_ids=db_ids,
-        )
-
-        # Compute the metrics with the custom compute_metric function
-        metrics = self.compute_metrics(eval_loop_output)
-
-        return EvalLoopOutput(metrics, eval_losses, len(eval_dataset), prediction_loss_only)
-
-
-
-# A custom data structure to include 'db_id'
-class EvalPredictionWithDbId:
-    def __init__(self, predictions, label_ids, db_ids):
-        self.predictions = predictions
-        self.label_ids = label_ids
-        self.db_ids = db_ids
-
-
 
 
 
@@ -107,16 +52,54 @@ def preprocess_function(example, tokenizer, db_id_to_content):
     }
 
 def main():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model_name = 't5-3b'
     tokenizer_name = 't5-3b'
     # model_name = "./checkpoints/T5-3B/batch2_zero3_epoch30_lr5e5/checkpoint-33000"
     # tokenizer_name = "tscholak/cxmefzzi"
+    config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
+    config.max_length = 512
+    model = T5ForConditionalGeneration.from_pretrained(model_name, config=config).to(device)
     tokenizer = T5Tokenizer.from_pretrained(tokenizer_name,model_max_length=512)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    dataset = load_dataset("spider", split='train').shuffle(seed=42).select(range(20))
-    dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
-    eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(20))
-    eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
+
+    with open('./spider_local/train_spider.json', 'r') as f:
+        train_data = json.load(f)
+    with open('./spider_local/dev.json', 'r') as f:
+        eval_data = json.load(f)
+
+    db_id_train = [entry["db_id"] for entry in train_data]
+    query_train = [entry["query"] for entry in train_data]
+    question_train = [entry["question"] for entry in train_data]
+
+
+    dataset_train = Dataset.from_dict({
+        "db_id": db_id_train,
+        "query": query_train,
+        "question": question_train,
+    })
+    db_id_eval = [entry["db_id"] for entry in eval_data]
+    query_eval = [entry["query"] for entry in eval_data]
+    question_eval = [entry["question"] for entry in eval_data]
+
+    dataset_eval = Dataset.from_dict({
+        "db_id": db_id_eval,
+        "query": query_eval,
+        "question": question_eval,
+    })
+
+
+    # Shuffle and select a subset of the data, if needed
+    dataset_train = dataset_train.shuffle(seed=42).select(range(20))
+    dataset_eval = dataset_eval.shuffle(seed=42).select(range(20))
+
+    # Preprocess the data
+    dataset = dataset_train.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
+    eval_dataset = dataset_eval.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
+
+    # dataset = load_dataset("spider", split='train').shuffle(seed=42).select(range(20))
+    # dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
+    # eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(20))
+    # eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
 
 
     training_args = Seq2SeqTrainingArguments(
@@ -147,9 +130,9 @@ def main():
         # print(f"db_id:{db_ids}\n")
         # print(f"preds:{preds}\n")
         # print(f"labels:{labels}\n")
-        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-        decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=True)
+        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=False)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=False)
+        decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=False)
         db_id = []
         for question in decoded_inputs:
             result = re.search(r'\|(.+?)\|', question)
@@ -172,7 +155,8 @@ def main():
         # print(len(decoded_labels))
         # print(len(db_id))
         gold_queries_and_db_ids = list(zip(decoded_labels, db_id))
-        # print(gold_queries_and_db_ids)
+
+        print(gold_queries_and_db_ids)
         db_dir = './database'
         etype = 'all'
         table = './tables.json'
@@ -180,41 +164,6 @@ def main():
         score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
         print(f"Execution Accuracy: {score}")
         return {"exec":score}  # 必须返回字典
-
-    config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
-    config.max_length = 512
-    model = T5ForConditionalGeneration.from_pretrained(model_name, config=config).to(device)
-
-    import numpy as np
-    import nltk
-    from transformers import TrainerCallback, TrainingArguments, Trainer
-
-    import numpy as np
-    import nltk
-    from transformers import TrainerCallback, TrainingArguments, Trainer
-
-    class EvalCallback(TrainerCallback):
-        def __init__(self,model,tokenzier,eval_dataset):
-            self.model = model
-            self.tokenzier = tokenzier
-            self.eval_dataset = eval_dataset
-        def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-            if state.global_step % 10 == 0:
-               eval_data = self.eval_dataset
-               input = eval_data[:]['input_ids']
-               gold = eval_data[:]['gold_query']
-               db_id = eval_data[:]['db_id']
-               gold_queries_and_db_ids = list(zip(gold, db_id))
-               output = self.model.generate(input, max_length=512, num_beams=4, early_stopping=True)
-               db_dir = './database'
-               etype = 'all'
-               table = './tables.json'
-               score = evaluate(gold_queries_and_db_ids, output, db_dir, etype, table)
-               print(f"Execution Accuracy: {score}")
-            else:
-                pass
-
-
 
     trainer = Seq2SeqTrainer(
         model=model,

@@ -312,8 +312,6 @@ def parse_condition(toks, start_idx, tables_with_alias, schema, default_tables=N
         if toks[idx] == 'not':
             not_op = True
             idx += 1
-
-        print("Input SQL query: {}".format(toks))
         assert idx < len_ and toks[idx] in WHERE_OPS, "Error condition: idx: {}, tok: {}".format(idx, toks[idx])
         op_id = WHERE_OPS.index(toks[idx])
         idx += 1
