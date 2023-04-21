@@ -511,9 +511,9 @@ def evaluate(gold, predict, db_dir, etype, table):
         g_str, db = g
         db_name = db
         db = os.path.join(db_dir, db, db + ".sqlite")
-        print(db)
+        # print(db)
         schema = Schema(get_schema(db))
-        print(schema)
+        # print(schema)
         g_sql = get_sql(schema, g_str)
         hardness = evaluator.eval_hardness(g_sql)
         scores[hardness]['count'] += 1

@@ -1,15 +1,8 @@
 import json
 from transformers import T5ForConditionalGeneration, T5Tokenizer,T5Config, Seq2SeqTrainingArguments,Seq2SeqTrainer,TrainerCallback,Trainer,TrainingArguments
-from transformers import TrainerControl, TrainerState, TrainingArguments
-import collections
-from typing import Dict, List, Optional, NamedTuple
-from datasets import load_dataset
 from datasets.arrow_dataset import Dataset
-
-import numpy as np
-
+import nltk
 import torch
-
 from Evaluation_self import evaluate,evaluate_test
 
 from transformers import Trainer
@@ -27,11 +20,6 @@ logging.basicConfig(
     level=logging.WARNING,
 )
 logger = logging.getLogger(__name__)
-
-
-
-from transformers import Seq2SeqTrainer
-
 
 
 
@@ -54,10 +42,11 @@ def preprocess_function(example, tokenizer, db_id_to_content):
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model_name = 't5-3b'
-    tokenizer_name = 't5-3b'
+    # tokenizer_name = 't5-3b'
     # model_name = "./checkpoints/T5-3B/batch2_zero3_epoch30_lr5e5/checkpoint-33000"
-    # tokenizer_name = "tscholak/cxmefzzi"
-    config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
+    tokenizer_name = "tscholak/cxmefzzi"
+    # config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
+    config = T5Config.from_pretrained(model_name)
     config.max_length = 512
     model = T5ForConditionalGeneration.from_pretrained(model_name, config=config).to(device)
     tokenizer = T5Tokenizer.from_pretrained(tokenizer_name,model_max_length=512)
@@ -89,8 +78,8 @@ def main():
 
 
     # Shuffle and select a subset of the data, if needed
-    dataset_train = dataset_train.shuffle(seed=42).select(range(20))
-    dataset_eval = dataset_eval.shuffle(seed=42).select(range(20))
+    dataset_train = dataset_train.shuffle(seed=42)
+    dataset_eval = dataset_eval.shuffle(seed=42).select(range(200))
 
     # Preprocess the data
     dataset = dataset_train.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
@@ -111,10 +100,10 @@ def main():
         per_device_eval_batch_size=2,
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
-        evaluation_strategy="epoch",  # Change evaluation_strategy to "steps"
-        # eval_steps=20,
-        # save_steps=100,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
-        # save_strategy="spoch",
+        evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
+        eval_steps=1000,
+        save_steps=2000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
+        save_strategy="steps",
         disable_tqdm=False,
         predict_with_generate=True,
         generation_max_length=512,
@@ -130,9 +119,9 @@ def main():
         # print(f"db_id:{db_ids}\n")
         # print(f"preds:{preds}\n")
         # print(f"labels:{labels}\n")
-        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=False)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=False)
-        decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=False)
+        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=True)
         db_id = []
         for question in decoded_inputs:
             result = re.search(r'\|(.+?)\|', question)
@@ -179,7 +168,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-## deepspeed --include localhost:0,1 finaltest_trainer_eval.py | use this code to choose GPUs to run
+## deepspeed --include localhost:0,1,2,3 finaltest_trainer_eval.py | use this code to choose GPUs to run
 ## Try to remove /.cache/pytorch_extensions if stuck somewhere
 ## add activation_checkpointing in ds_config if oom(batch = 16,without: 20GB/GPU, with: 26GB/GPU
 ## need to run the script provided by deepspeed to convert the model to normal torch model
