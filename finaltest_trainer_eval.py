@@ -79,7 +79,7 @@ def main():
 
     # Shuffle and select a subset of the data, if needed
     dataset_train = dataset_train.shuffle(seed=42)
-    dataset_eval = dataset_eval.shuffle(seed=42)
+    dataset_eval = dataset_eval
 
     # Preprocess the data
     dataset = dataset_train.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
@@ -101,7 +101,7 @@ def main():
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=1000,
+        eval_steps=1,
         save_steps=2000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
@@ -143,8 +143,16 @@ def main():
         # db_ids = eval_dataset[:]['db_id']
         # print(len(decoded_labels))
         # print(len(db_id))
-        gold_queries_and_db_ids = list(zip(decoded_labels, db_id))
+        # gold_queries_and_db_ids = list(zip(decoded_labels, db_id))
+        gold_queries_and_db_ids = []
+        with open("./Evaluation_file/gold_example_1e4__checkpoint-10000.txt", 'r') as file:
+            for line in file:
+                # Split the line by the tab character '\t'
+                query, db_id = line.strip().split('\t')
 
+                # Append the query and db_id as a tuple to the list
+                gold_queries_and_db_ids.append((query, db_id))
+        print(gold_queries_and_db_ids)
         # print(gold_queries_and_db_ids)
         db_dir = './database'
         etype = 'all'
