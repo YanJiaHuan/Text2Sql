@@ -876,4 +876,4 @@ if __name__ == "__main__":
 # checkpoint-20000
 # CUDA_VISIBLE_DEVICES=0 python Evaluation.py --gold './gold_example.txt' --pred './pred_example.txt' --etype 'all' --db './database' --table './tables.json'
 
-# CUDA_VISIBLE_DEVICES=3 python Evaluation.py --gold './Evaluation_file/gold_example_1e4__checkpoint-16000.txt' --pred './Evaluation_file/pred_example_1e4__checkpoint-16000.txt' --etype 'all' --db './database' --table './tables.json'
+# CUDA_VISIBLE_DEVICES=3 python Evaluation.py --gold './Evaluation_file/gold_example_1e4__checkpoint-50000.txt' --pred './Evaluation_file/pred_example_1e4__checkpoint-50000.txt' --etype 'all' --db './database' --table './tables.json'

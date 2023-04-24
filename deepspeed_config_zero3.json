@@ -6,7 +6,7 @@
   "optimizer": {
     "type": "AdamW",
     "params": {
-      "lr": 1e-4
+      "lr": 8e-5
     }
   },
   "scheduler": {

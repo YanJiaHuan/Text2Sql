@@ -79,7 +79,7 @@ def main():
 
     # Shuffle and select a subset of the data, if needed
     dataset_train = dataset_train.shuffle(seed=42)
-    dataset_eval = dataset_eval.shuffle(seed=42).select(range(200))
+    dataset_eval = dataset_eval.shuffle(seed=42)
 
     # Preprocess the data
     dataset = dataset_train.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
@@ -95,7 +95,7 @@ def main():
         output_dir="checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq",
         deepspeed="./deepspeed_config.json",
         num_train_epochs=50,
-        learning_rate=1e-4,
+        learning_rate=8e-5,
         per_device_train_batch_size=1,
         per_device_eval_batch_size=2,
         gradient_accumulation_steps=1, # dafault is 1
@@ -145,11 +145,11 @@ def main():
         # print(len(db_id))
         gold_queries_and_db_ids = list(zip(decoded_labels, db_id))
 
-        print(gold_queries_and_db_ids)
+        # print(gold_queries_and_db_ids)
         db_dir = './database'
         etype = 'all'
         table = './tables.json'
-        print("now you see")
+        # print("now you see")
         score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
         print(f"Execution Accuracy: {score}")
         return {"exec":score}  # 必须返回字典

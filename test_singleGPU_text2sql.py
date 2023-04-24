@@ -22,9 +22,9 @@ def generate_query(model, tokenizer, input_text, device, max_length=512, num_bea
 
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    path = "./checkpoints/T5-3B/batch2_zero3_epoch30_lr1e4/"
+    path = "./checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq/"
     # Replace with the path to your model
-    checkpoint = "checkpoint-16000"
+    checkpoint = "checkpoint-50000"
     model_path = path+ checkpoint
     # tokenier_path = "./checkpoints/T5-3B/batch2_zero3_epoch4_lr5e5/tokenizer-7000"
     tokenier_path = "tscholak/cxmefzzi"
