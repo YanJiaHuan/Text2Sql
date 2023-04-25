@@ -649,7 +649,7 @@ def eval_exec_match(db, p_str, g_str, pred, gold):
         rmap = {}
         for idx, val_unit in enumerate(val_units):
             key = tuple(val_unit[1]) if not val_unit[2] else (val_unit[0], tuple(val_unit[1]), tuple(val_unit[2]))
-            rmap[key] = [r[idx] for r in res]
+            rmap[key] = [r[idx] for r in res if idx < len(r)]
         return rmap
 
     p_val_units = [unit[1] for unit in pred['select'][1]]

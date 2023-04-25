@@ -41,9 +41,9 @@ def preprocess_function(example, tokenizer, db_id_to_content):
 
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model_name = 't5-3b'
+    # model_name = 't5-3b'
     # tokenizer_name = 't5-3b'
-    # model_name = "./checkpoints/T5-3B/batch2_zero3_epoch30_lr5e5/checkpoint-33000"
+    model_name = "./checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq/checkpoint-8000"
     tokenizer_name = "tscholak/cxmefzzi"
     # config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
     config = T5Config.from_pretrained(model_name)
@@ -92,7 +92,7 @@ def main():
 
 
     training_args = Seq2SeqTrainingArguments(
-        output_dir="checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq",
+        output_dir="checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq_2",
         deepspeed="./deepspeed_config.json",
         num_train_epochs=50,
         learning_rate=8e-5,
@@ -101,7 +101,7 @@ def main():
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=1,
+        eval_steps=1000,
         save_steps=2000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
@@ -152,7 +152,7 @@ def main():
 
                 # Append the query and db_id as a tuple to the list
                 gold_queries_and_db_ids.append((query, db_id))
-        print(gold_queries_and_db_ids)
+        # print(gold_queries_and_db_ids)
         # print(gold_queries_and_db_ids)
         db_dir = './database'
         etype = 'all'
