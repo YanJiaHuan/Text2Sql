@@ -4,7 +4,7 @@ import openai
 import os
 import sys
 import tiktoken
-
+import signal
 
 
 #----------------------------------------------------prompts-----------------------------------------------
@@ -122,57 +122,18 @@ Based on the columns and tables, we need these Foreign_keys = [farm_competition.
 Based on the tables, columns, and Foreign_keys, The set of possible cell values are = []. So the Schema_links are:
 Schema_links: [city.Status,farm_competition.Host_city_ID = city.City_ID,farm_competition.*]
 
-Table advisor, columns = [*,s_ID,i_ID]
-Table classroom, columns = [*,building,room_number,capacity]
-Table course, columns = [*,course_id,title,dept_name,credits]
-Table department, columns = [*,dept_name,building,budget]
-Table instructor, columns = [*,ID,name,dept_name,salary]
-Table prereq, columns = [*,course_id,prereq_id]
-Table section, columns = [*,course_id,sec_id,semester,year,building,room_number,time_slot_id]
-Table student, columns = [*,ID,name,dept_name,tot_cred]
-Table takes, columns = [*,ID,course_id,sec_id,semester,year,grade]
-Table teaches, columns = [*,ID,course_id,sec_id,semester,year]
-Table time_slot, columns = [*,time_slot_id,day,start_hr,start_min,end_hr,end_min]
-Foreign_keys = [course.dept_name = department.dept_name,instructor.dept_name = department.dept_name,section.building = classroom.building,section.room_number = classroom.room_number,section.course_id = course.course_id,teaches.ID = instructor.ID,teaches.course_id = section.course_id,teaches.sec_id = section.sec_id,teaches.semester = section.semester,teaches.year = section.year,student.dept_name = department.dept_name,takes.ID = student.ID,takes.course_id = section.course_id,takes.sec_id = section.sec_id,takes.semester = section.semester,takes.year = section.year,advisor.s_ID = student.ID,advisor.i_ID = instructor.ID,prereq.prereq_id = course.course_id,prereq.course_id = course.course_id]
-Q: "Find the id of instructors who taught a class in Fall 2009 but not in Spring 2010."
-A: Let’s think step by step. In the question "Find the id of instructors who taught a class in Fall 2009 but not in Spring 2010.", we are asked:
-"id of instructors who taught " so we need column = [teaches.id]
-"taught a class in" so we need column = [teaches.semester,teaches.year]
-Based on the columns and tables, we need these Foreign_keys = [].
-Based on the tables, columns, and Foreign_keys, The set of possible cell values are = [Fall,2009,Spring,2010]. So the Schema_links are:
-schema_links: [teaches.id,teaches.semester,teaches.year,Fall,2009,Spring,2010]
-
-Table Accounts, columns = [*,account_id,customer_id,date_account_opened,account_name,other_account_details]
-Table Customers, columns = [*,customer_id,customer_first_name,customer_middle_initial,customer_last_name,gender,email_address,login_name,login_password,phone_number,town_city,state_county_province,country]
-Table Financial_Transactions, columns = [*,transaction_id,account_id,invoice_number,transaction_type,transaction_date,transaction_amount,transaction_comment,other_transaction_details]
-Table Invoice_Line_Items, columns = [*,order_item_id,invoice_number,product_id,product_title,product_quantity,product_price,derived_product_cost,derived_vat_payable,derived_total_cost]
-Table Invoices, columns = [*,invoice_number,order_id,invoice_date]
-Table Order_Items, columns = [*,order_item_id,order_id,product_id,product_quantity,other_order_item_details]
-Table Orders, columns = [*,order_id,customer_id,date_order_placed,order_details]
-Table Product_Categories, columns = [*,production_type_code,product_type_description,vat_rating]
-Table Products, columns = [*,product_id,parent_product_id,production_type_code,unit_price,product_name,product_color,product_size]
-Foreign_keys = [Orders.customer_id = Customers.customer_id,Invoices.order_id = Orders.order_id,Accounts.customer_id = Customers.customer_id,Products.production_type_code = Product_Categories.production_type_code,Financial_Transactions.account_id = Accounts.account_id,Financial_Transactions.invoice_number = Invoices.invoice_number,Order_Items.order_id = Orders.order_id,Order_Items.product_id = Products.product_id,Invoice_Line_Items.product_id = Products.product_id,Invoice_Line_Items.invoice_number = Invoices.invoice_number,Invoice_Line_Items.order_item_id = Order_Items.order_item_id]
-Q: "Show the id, the date of account opened, the account name, and other account detail for all accounts."
-A: Let’s think step by step. In the question "Show the id, the date of account opened, the account name, and other account detail for all accounts.", we are asked:
-"the id, the date of account opened, the account name, and other account detail for all accounts." so we need column = [Accounts.account_id,Accounts.account_name,Accounts.other_account_details,Accounts.date_account_opened]
-Based on the columns and tables, we need these Foreign_keys = [].
-Based on the tables, columns, and Foreign_keys, The set of possible cell values are = []. So the Schema_links are:
-Schema_links: [Accounts.account_id,Accounts.account_name,Accounts.other_account_details,Accounts.date_account_opened]
-
-Table city, columns = [*,City_ID,Official_Name,Status,Area_km_2,Population,Census_Ranking]
-Table competition_record, columns = [*,Competition_ID,Farm_ID,Rank]
-Table farm, columns = [*,Farm_ID,Year,Total_Horses,Working_Horses,Total_Cattle,Oxen,Bulls,Cows,Pigs,Sheep_and_Goats]
-Table farm_competition, columns = [*,Competition_ID,Year,Theme,Host_city_ID,Hosts]
-Foreign_keys = [farm_competition.Host_city_ID = city.City_ID,competition_record.Farm_ID = farm.Farm_ID,competition_record.Competition_ID = farm_competition.Competition_ID]
-Q: "Show the status shared by cities with population bigger than 1500 and smaller than 500."
-A: Let’s think step by step. In the question "Show the status shared by cities with population bigger than 1500 and smaller than 500.", we are asked:
-"the status shared by cities" so we need column = [city.Status]
-"cities with population" so we need column = [city.Population]
-Based on the columns and tables, we need these Foreign_keys = [].
-Based on the tables, columns, and Foreign_keys, The set of possible cell values are = [1500,500]. So the Schema_links are:
-Schema_links: [city.Status,city.Population,1500,500]
-
 '''
+###########
+schema_linking_prompt_new = '''
+# You are an expert in SQL and please use the necessary tables, columns, 
+and foreign keys from the database schema to do the text2sql task. 
+Return format like:
+Schema_links: [city.Status,farm_competition.Host_city_ID = city.City_ID,farm_competition.*]
+Schema_links: [course.title,course.course_id = SECTION.course_id,SECTION.building,SECTION.year,SECTION.semester,Chandler,Fall,2010]
+#
+'''
+
+# 删了三个example
 classification_prompt = '''Q: "Find the buildings which have rooms with capacity more than 50."
 schema_links: [classroom.building,classroom.capacity,50]
 A: Let’s think step by step. The SQL query for the question "Find the buildings which have rooms with capacity more than 50." needs these tables = [classroom], so we don't need JOIN.
@@ -222,29 +183,10 @@ Plus, it doesn't require nested queries with (INTERSECT, UNION, EXCEPT, IN, NOT 
 So, we don't need JOIN and don't need nested queries, then the the SQL query can be classified as "EASY".
 Label: "EASY"
 
-Q: "What is the name of the instructor who advises the student with the greatest number of total credits?"
-schema_links: [advisor.i_id = instructor.id,advisor.s_id = student.id,instructor.name,student.tot_cred ]
-A: Let’s think step by step. The SQL query for the question "What is the name of the instructor who advises the student with the greatest number of total credits?" needs these tables = [advisor,instructor,student], so we need JOIN.
-Plus, it doesn't need nested queries with (INTERSECT, UNION, EXCEPT, IN, NOT IN), and we need the answer to the questions = [""].
-So, we need JOIN and don't need nested queries, then the the SQL query can be classified as "NON-NESTED".
-Label: "NON-NESTED"
-
-Q: "Find the total number of students and total number of instructors for each department."
-schema_links = [department.dept_name = instructor.dept_name,student.id,student.dept_name = department.dept_name,instructor.id]
-A: Let’s think step by step. The SQL query for the question "Find the total number of students and total number of instructors for each department." needs these tables = [department,instructor,student], so we need JOIN.
-Plus, it doesn't need nested queries with (INTERSECT, UNION, EXCEPT, IN, NOT IN), and we need the answer to the questions = [""].
-So, we need JOIN and don't need nested queries, then the the SQL query can be classified as "NON-NESTED".
-Label: "NON-NESTED"
-
-Q: "Give the name and building of the departments with greater than average budget."
-schema_links: [department.budget,department.dept_name,department.building]
-A: Let’s think step by step. The SQL query for the question "Give the name and building of the departments with greater than average budget." needs these tables = [department], so we don't need JOIN.
-Plus, it requires nested queries with (INTERSECT, UNION, EXCEPT, IN, NOT IN), and we need the answer to the questions = ["What is the average budget of the departments"].
-So, we don't need JOIN and need nested queries, then the the SQL query can be classified as "NESTED".
-Label: "NESTED"
-
 '''
+# 删了三个example
 
+classification_prompt_new = " "
 easy_prompt = '''Q: "Find the buildings which have rooms with capacity more than 50."
 Schema_links: [classroom.building,classroom.capacity,50]
 SQL: SELECT DISTINCT building FROM classroom WHERE capacity  >  50
@@ -289,19 +231,9 @@ Q: "How many rooms in each building have a capacity of over 50?"
 Schema_links: [classroom.*,classroom.building,classroom.capacity,50]
 SQL: SELECT count(*) ,  building FROM classroom WHERE capacity  >  50 GROUP BY building
 
-Q: "Find the names of the top 3 departments that provide the largest amount of courses?"
-Schema_links: [course.dept_name,course.*]
-SQL: SELECT dept_name FROM course GROUP BY dept_name ORDER BY count(*) DESC LIMIT 3
-
-Q: "Find the maximum and average capacity among rooms in each building."
-Schema_links: [classroom.building,classroom.capacity]
-SQL: SELECT max(capacity) ,  avg(capacity) ,  building FROM classroom GROUP BY building
-
-Q: "Find the title of the course that is offered by more than one department."
-Schema_links: [course.title]
-SQL: SELECT title FROM course GROUP BY title HAVING count(*)  >  1
-
 '''
+easy_prompt_new = " "
+# 删了三个example
 medium_prompt = '''Q: "Find the total budgets of the Marketing or Finance department."
 Schema_links: [department.budget,department.dept_name,Marketing,Finance]
 A: Let’s think step by step. For creating the SQL for the given question, we need to join these tables = []. First, create an intermediate representation, then use it to construct the SQL query.
@@ -326,25 +258,9 @@ A: Let’s think step by step. For creating the SQL for the given question, we n
 Intermediate_representation: "select count( distinct student.ID) , count( distinct instructor.ID) , department.dept_name from department  group by instructor.dept_name
 SQL: SELECT count(DISTINCT T2.id) ,  count(DISTINCT T3.id) ,  T3.dept_name FROM department AS T1 JOIN student AS T2 ON T1.dept_name  =  T2.dept_name JOIN instructor AS T3 ON T1.dept_name  =  T3.dept_name GROUP BY T3.dept_name
 
-Q: "Find the title of courses that have two prerequisites?"
-Schema_links: [course.title,course.course_id = prereq.course_id]
-A: Let’s think step by step. For creating the SQL for the given question, we need to join these tables = [course,prereq]. First, create an intermediate representation, then use it to construct the SQL query.
-Intermediate_representation: select course.title from course  where  count ( prereq.* )  = 2  group by prereq.course_id
-SQL: SELECT T1.title FROM course AS T1 JOIN prereq AS T2 ON T1.course_id  =  T2.course_id GROUP BY T2.course_id HAVING count(*)  =  2
-
-Q: "Find the name of students who took any class in the years of 2009 and 2010."
-Schema_links: [student.name,student.id = takes.id,takes.YEAR,2009,2010]
-A: Let’s think step by step. For creating the SQL for the given question, we need to join these tables = [student,takes]. First, create an intermediate representation, then use it to construct the SQL query.
-Intermediate_representation: select  distinct student.name from student  where  takes.year = 2009  or  takes.year = 2010
-SQL: SELECT DISTINCT T1.name FROM student AS T1 JOIN takes AS T2 ON T1.id  =  T2.id WHERE T2.YEAR  =  2009 OR T2.YEAR  =  2010
-
-Q: "list in alphabetic order all course names and their instructors' names in year 2008."
-Schema_links: [course.title,course.course_id = teaches.course_id,teaches.id = instructor.id,instructor.name,teaches.year,2008]
-A: Let’s think step by step. For creating the SQL for the given question, we need to join these tables = [course,teaches,instructor]. First, create an intermediate representation, then use it to construct the SQL query.
-Intermediate_representation: select course.title , instructor.name from course  where  teaches.year = 2008  order by course.title asc
-SQL: SELECT T1.title ,  T3.name FROM course AS T1 JOIN teaches AS T2 ON T1.course_id  =  T2.course_id JOIN instructor AS T3 ON T2.id  =  T3.id WHERE T2.YEAR  =  2008 ORDER BY T1.title
-
 '''
+medium_prompt_new = " "
+# 删了三个example
 hard_prompt = '''Q: "Find the title of courses that have two prerequisites?"
 Schema_links: [course.title,course.course_id = prereq.course_id]
 A: Let's think step by step. "Find the title of courses that have two prerequisites?" can be solved by knowing the answer to the following sub-question "What are the titles for courses with two prerequisites?".
@@ -409,57 +325,37 @@ So, the answer to the question "Find the names of students who have taken any co
 Intermediate_representation: select student.name from student  where  takes.semester = \"Fall\"  and  takes.year = 2003
 SQL: SELECT name FROM student WHERE id IN (SELECT id FROM takes WHERE semester  =  'Fall' AND YEAR  =  2003)
 
-Q: "Find the minimum salary for the departments whose average salary is above the average payment of all instructors."
-Schema_links: [instructor.salary,instructor.dept_name]
-A: Let's think step by step. "Find the minimum salary for the departments whose average salary is above the average payment of all instructors." can be solved by knowing the answer to the following sub-question "What is the average payment of all instructors.".
-The SQL query for the sub-question "What is the average payment of all instructors." is SELECT avg(salary) FROM instructor
-So, the answer to the question "Find the minimum salary for the departments whose average salary is above the average payment of all instructors." is =
-Intermediate_representation: select min(instructor.salary) , instructor.dept_name from instructor  where  avg ( instructor.salary )  > avg ( instructor.salary )   group by instructor.dept_name
-SQL: SELECT min(salary) ,  dept_name FROM instructor GROUP BY dept_name HAVING avg(salary)  >  (SELECT avg(salary) FROM instructor)
-
-Q: "What is the course title of the prerequisite of course Mobile Computing?"
-Schema_links: [course.title,course.course_id = prereq.course_id,prereq.prereq_id,course.title,Mobile Computing]
-A: Let's think step by step. "What is the course title of the prerequisite of course Mobile Computing?" can be solved by knowing the answer to the following sub-question "What are the ids of the prerequisite of course Mobile Computing?".
-The SQL query for the sub-question "What are the ids of the prerequisite of course Mobile Computing?" is SSELECT T1.prereq_id FROM prereq AS T1 JOIN course AS T2 ON T1.course_id  =  T2.course_id WHERE T2.title  =  'Mobile Computing'
-So, the answer to the question "What is the course title of the prerequisite of course Mobile Computing?" is =
-Intermediate_representation: select course.title from course  where  @.@ in prereq.*  and  course.title = \"Mobile Computing\"
-SQL: SELECT title FROM course WHERE course_id IN (SELECT T1.prereq_id FROM prereq AS T1 JOIN course AS T2 ON T1.course_id  =  T2.course_id WHERE T2.title  =  'Mobile Computing')
-
-Q: "Give the title and credits for the course that is taught in the classroom with the greatest capacity."
-Schema_links: [classroom.capacity,classroom.building = SECTION.building,classroom.room_number = SECTION.room_number,course.title,course.credits,course.course_id = SECTION.course_id]
-A: Let's think step by step. "Give the title and credits for the course that is taught in the classroom with the greatest capacity." can be solved by knowing the answer to the following sub-question "What is the capacity of the largest room?".
-The SQL query for the sub-question "What is the capacity of the largest room?" is (SELECT max(capacity) FROM classroom)
-So, the answer to the question "Give the title and credits for the course that is taught in the classroom with the greatest capacity." is =
-Intermediate_representation: select course.title , course.credits from classroom  order by classroom.capacity desc limit 1"
-SQL: SELECT T3.title ,  T3.credits FROM classroom AS T1 JOIN SECTION AS T2 ON T1.building  =  T2.building AND T1.room_number  =  T2.room_number JOIN course AS T3 ON T2.course_id  =  T3.course_id WHERE T1.capacity  =  (SELECT max(capacity) FROM classroom)
-
 '''
+hard_prompt_new = " "
+
+# 删了三个exampple
 #----------------------------------------------------------------------------------------------------------
 
-# if sys.argv[1] == "--dataset" and sys.argv[3] == "--output":
-#     DATASET_SCHEMA = sys.argv[2]+"tables.json"
-#     DATASET = sys.argv[2]+"dev.json"
-#     OUTPUT_FILE = sys.argv[4]
-# else:
-#     raise Exception("Please use this format python CoT.py --dataset data/ --output predicted_sql.txt")
-
-API_KEY = "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"
+API_KEY = "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" # 自己的
 # API_KEY = "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"  # 买的
-
+# API_KEY = "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" # gpt4 孙哥
 os.environ["OPENAI_API_KEY"] = API_KEY
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 #changed
-path_to_CoSQL = "/Users/yan/Desktop/text2sql/cosql_dataset"
-DATASET_SCHEMA = path_to_CoSQL+"/tables.json"
-DATASET = path_to_CoSQL+"/sql_state_tracking/cosql_dev.json"
-OUTPUT_FILE = "./predicted_sql.txt"
-
-
+task = 'Spider' # 1 for CoSQL, 2 for Spider
+if task == 'CoSQL':
+    path_to_CoSQL = "/Users/yan/Desktop/text2sql/cosql_dataset"
+    DATASET_SCHEMA = path_to_CoSQL+"/tables.json"
+    DATASET = path_to_CoSQL+"/sql_state_tracking/cosql_dev.json"
+    OUTPUT_FILE_1 = "./predicted_sql.txt"
+    OUTPUT_FILE_2 = "./gold_sql.txt"
+else:
+    path_to_Spider = "/Users/yan/Desktop/text2sql/spider"
+    DATASET_SCHEMA = path_to_Spider + "/tables.json"
+    DATASET = path_to_Spider + "/dev.json"
+    OUTPUT_FILE_1 = "./Spider/predicted_sql.txt"
+    OUTPUT_FILE_2 = "./Spider/gold_sql.txt"
 
 # set max tokens limit
 MAX_TOKENS = 4096
 model_name = "gpt-3.5-turbo"
+# model_name = "gpt-4"
 encoding = tiktoken.encoding_for_model(model_name)
 # count the token
 def num_tokens_from_string(string: str, model_name: str) -> int:
@@ -480,7 +376,7 @@ def hard_prompt_maker(test_sample_text,database,schema_links,sub_questions):
   fields += "Foreign_keys = " + find_foreign_keys_MYSQL_like(database) + '\n'
   stepping = f'''\nA: Let's think step by step. "{test_sample_text}" can be solved by knowing the answer to the following sub-question "{sub_questions}".'''
   fields += "\n"
-  prompt = instruction +fields + hard_prompt + 'Q: "' + test_sample_text + '"' + '\nschema_links: ' + schema_links + stepping +'\nThe SQL query for the sub-question"'
+  prompt = instruction +fields + hard_prompt_new + 'Q: "' + test_sample_text + '"' + '\nschema_links: ' + schema_links + stepping +'\nThe SQL query for the sub-question"'
   return prompt
 def medium_prompt_maker(test_sample_text,database,schema_links):
   instruction = "# Use the the schema links and Intermediate_representation to generate the SQL queries for each of the questions.\n"
@@ -489,14 +385,14 @@ def medium_prompt_maker(test_sample_text,database,schema_links):
   fields += find_fields_MYSQL_like(database)
   fields += "Foreign_keys = " + find_foreign_keys_MYSQL_like(database) + '\n'
   fields += "\n"
-  prompt = instruction +fields + medium_prompt + 'Q: "' + test_sample_text + '\nSchema_links: ' + schema_links + '\nA: Let’s think step by step.'
+  prompt = instruction +fields + medium_prompt_new + 'Q: "' + test_sample_text + '\nSchema_links: ' + schema_links + '\nA: Let’s think step by step.'
   return prompt
 def easy_prompt_maker(test_sample_text,database,schema_links):
   instruction = "# Use the the schema links to generate the SQL queries for each of the questions.\n"
   fields = find_fields_MYSQL_like("college_2")
   fields += find_fields_MYSQL_like(database)
   fields += "\n"
-  prompt = instruction +fields + easy_prompt + 'Q: "' + test_sample_text + '\nSchema_links: ' + schema_links + '\nSQL:'
+  prompt = 'Q: "' + test_sample_text+instruction +fields + easy_prompt_new + '\nSchema_links: ' + schema_links + '\nSQL:'
   return prompt
 def classification_prompt_maker(test_sample_text,database,schema_links):
   instruction = "# For the given question, classify it as EASY, NON-NESTED, or NESTED based on nested queries and JOIN.\n"
@@ -508,13 +404,13 @@ def classification_prompt_maker(test_sample_text,database,schema_links):
   fields += find_fields_MYSQL_like(database)
   fields += "Foreign_keys = " + find_foreign_keys_MYSQL_like(database) + '\n'
   fields += "\n"
-  prompt = instruction + fields + classification_prompt + 'Q: "' + test_sample_text + '\nschema_links: ' + schema_links + '\nA: Let’s think step by step.'
+  prompt = 'Q: "' + test_sample_text +instruction + fields + classification_prompt_new + '\nschema_links: ' + schema_links + '\nA: Let’s think step by step.'
   return prompt
 def schema_linking_prompt_maker(test_sample_text,database):
   instruction = "# Find the schema_links for generating SQL queries for each question based on the database schema and Foreign keys.\n"
   fields = find_fields_MYSQL_like(database)
   foreign_keys = "Foreign_keys = " + find_foreign_keys_MYSQL_like(database) + '\n'
-  prompt = instruction + schema_linking_prompt + fields +foreign_keys+ 'Q: "' + test_sample_text + """"\nA: Let’s think step by step."""
+  prompt = instruction + schema_linking_prompt_new + fields +foreign_keys+ 'Q: "' + test_sample_text + """"\nA: Let’s think step by step."""
   return prompt
 def find_foreign_keys_MYSQL_like(db_name):
   df = spider_foreign[spider_foreign['Database name'] == db_name]
@@ -590,7 +486,7 @@ def debuger(test_sample_text,database,sql):
   fields = find_fields_MYSQL_like(database)
   fields += "Foreign_keys = " + find_foreign_keys_MYSQL_like(database) + '\n'
   fields += "Primary_keys = " + find_primary_keys_MYSQL_like(database)
-  prompt = instruction + fields+ '#### Question: ' + test_sample_text + '\n#### SQLite SQL QUERY\n' + sql +'\n#### SQLite FIXED SQL QUERY\nSELECT'
+  prompt = '#### Question: ' + test_sample_text+instruction + fields + '\n#### SQLite SQL QUERY\n' + sql +'\n#### SQLite FIXED SQL QUERY\nSELECT'
   return prompt
 
 #changed
@@ -599,8 +495,10 @@ def GPT4_generation(prompt):
     if token_count > MAX_TOKENS:
         print(f"Token count ({token_count}) exceeds the maximum limit ({MAX_TOKENS}). Skipping request.")
         prompt = prompt[:MAX_TOKENS]
+    print("##"*10)
+    print(prompt)
     response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
+    model=model_name,
     messages=[{"role": "user", "content": prompt}],
     n = 1,
     stream = False,
@@ -618,8 +516,10 @@ def GPT4_debug(prompt):
     if token_count > MAX_TOKENS:
         print(f"Token count ({token_count}) exceeds the maximum limit ({MAX_TOKENS}). Skipping request.")
         prompt= prompt[:MAX_TOKENS]
+    print("##"*10)
+    print(prompt)
     response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
+    model=model_name,
     messages=[{"role": "user", "content": prompt}],
     n = 1,
     stream = False,
@@ -633,117 +533,231 @@ def GPT4_debug(prompt):
     return response['choices'][0]['message']['content']
 
 if __name__ == '__main__':
+###########################################################################################
     spider_schema,spider_primary,spider_foreign = creatiing_schema(DATASET_SCHEMA)
     val_df = load_data(DATASET)
     print(val_df)
     print(f"Number of data samples {val_df.shape[0]}")
     # 293 for Corsql
     CODEX = []
-    for index, row in val_df.iterrows():
-        #if index < 405: continue #for testing
-        print(f"index is {index}")
-        print(row['final'])
-        print(row['interaction'][0]['utterance'])
-        print(row['interaction'][0]['query'])
-        question = row['interaction'][0]['utterance']
-        sql = row['interaction'][0]['query']
-        db_id = row['database_id']
-        schema_links = None
-        while schema_links is None:
-            try:
-                schema_links = GPT4_generation(
-                    schema_linking_prompt_maker(question, db_id))
-                print("schema_links generation done 1/6")
-            except:
-                time.sleep(3)
-                pass
-        try:
-            schema_links = schema_links.split("Schema_links: ")[1]
-            print("schema link split done 2/6")
-        except:
-            print("Slicing error for the schema_linking module")
-            schema_links = "[]"
-        #print(schema_links)
-        classification = None
-        while classification is None:
-            try:
-                classification = GPT4_generation(
-                    classification_prompt_maker(question, db_id, schema_links[1:]))
-                print("classification generation done 3/6")
-            except:
-                time.sleep(3)
-                pass
-        try:
-            predicted_class = classification.split("Label: ")[1]
-            print("classification split done 4/6")
-        except:
-            print("Slicing error for the classification module")
-            predicted_class = '"NESTED"'
-        #print(classification)
-        if '"EASY"' in predicted_class:
-            print("EASY")
-            SQL = None
-            while SQL is None:
+    if task == 'CoSQL':
+        for index, row in val_df.iterrows():
+            #if index < 405: continue #for testing
+            print(f"index is {index}")
+            print(row['final'])
+            print(row['interaction'][0]['utterance'])
+            print(row['interaction'][0]['query'])
+            question = row['interaction'][0]['utterance']
+            sql = row['interaction'][0]['query']
+            db_id = row['database_id']
+            schema_links = None
+            while schema_links is None:
                 try:
-                    SQL = GPT4_generation(easy_prompt_maker(question, db_id, schema_links))
-                    print("EASY generation done 5/6")
-                except:
-                    time.sleep(3)
-                    pass
-        elif '"NON-NESTED"' in predicted_class:
-            print("NON-NESTED")
-            SQL = None
-            while SQL is None:
-                try:
-                    SQL = GPT4_generation(medium_prompt_maker(question, db_id, schema_links))
-                    print("Medium generation done 5/6")
+                    schema_links = GPT4_generation(
+                        schema_linking_prompt_maker(question, db_id))
+                    print("schema_links generation done 1/6")
                 except:
                     time.sleep(3)
                     pass
             try:
-                SQL = SQL.split("SQL: ")[1]
+                schema_links = schema_links.split("Schema_links: ")[1]
+                print("schema link split done 2/6")
             except:
-                print("SQL slicing error")
-                SQL = "SELECT"
-        else:
-            # changed
-            # sub_questions = classification.split('questions = ["')[1].split('"]')[0]
-            # print("NESTED")
-            try:
-                sub_questions = classification.split('questions = ["')[1].split('"]')[0]
-            except IndexError:
-                sub_questions = question
-            SQL = None
-            while SQL is None:
+                print("Slicing error for the schema_linking module")
+                schema_links = schema_links
+            #print(schema_links)
+            classification = None
+            while classification is None:
                 try:
-                    SQL = GPT4_generation(
-                        hard_prompt_maker(question, db_id, schema_links, sub_questions))
-                    print("hard generation done 5/6")
+                    classification = GPT4_generation(
+                        classification_prompt_maker(question, db_id, schema_links[1:]))
+                    print("classification generation done 3/6")
                 except:
                     time.sleep(3)
                     pass
             try:
-                SQL = SQL.split("SQL: ")[1]
+                predicted_class = classification.split("Label: ")[1]
+                print("classification split done 4/6")
             except:
-                print("SQL slicing error")
-                SQL = "SELECT"
-        print(SQL)
-        debugged_SQL = None
-        while debugged_SQL is None:
+                print("Slicing error for the classification module")
+                predicted_class = '"NESTED"'
+            #print(classification)
+            if '"EASY"' in predicted_class:
+                print("EASY")
+                SQL = None
+                while SQL is None:
+                    try:
+                        SQL = GPT4_generation(easy_prompt_maker(question, db_id, schema_links))
+                        print("EASY generation done 5/6")
+                    except:
+                        time.sleep(3)
+                        pass
+            elif '"NON-NESTED"' in predicted_class:
+                print("NON-NESTED")
+                SQL = None
+                while SQL is None:
+                    try:
+                        SQL = GPT4_generation(medium_prompt_maker(question, db_id, schema_links))
+                        print("Medium generation done 5/6")
+                    except:
+                        time.sleep(3)
+                        pass
+                try:
+                    SQL = SQL.split("SQL: ")[1]
+                except:
+                    print("SQL slicing error")
+                    SQL = "SELECT"
+            else:
+                # changed
+                # sub_questions = classification.split('questions = ["')[1].split('"]')[0]
+                # print("NESTED")
+                try:
+                    sub_questions = classification.split('questions = ["')[1].split('"]')[0]
+                except IndexError:
+                    sub_questions = question
+                SQL = None
+                while SQL is None:
+                    try:
+                        SQL = GPT4_generation(
+                            hard_prompt_maker(question, db_id, schema_links, sub_questions))
+                        print("hard generation done 5/6")
+                    except:
+                        time.sleep(3)
+                        pass
+                try:
+                    SQL = SQL.split("SQL: ")[1]
+                except:
+                    print("SQL slicing error")
+                    SQL = "SELECT"
+            print(SQL)
+            debugged_SQL = None
+            while debugged_SQL is None:
+                try:
+                    debugged_SQL = GPT4_debug(debuger(question, db_id, SQL)).replace("\n", " ")
+                    print("debugger generation done 6/6")
+                except:
+                    time.sleep(3)
+                    pass
+            SQL = "SELECT " + debugged_SQL
+            print(SQL)
+            CODEX.append([question, SQL, sql, db_id])
+            #break
+        df = pd.DataFrame(CODEX, columns=['NLQ', 'PREDICTED SQL', 'GOLD SQL', 'DATABASE'])
+        results = df['PREDICTED SQL'].tolist()
+        with open(OUTPUT_FILE_1, 'w') as f:
+            for line in results:
+                f.write(f"{line}\n")
+    else:
+        for index, row in val_df[4:7].iterrows():
+            # if index < 405: continue #for testing
+            print(f"index is {index}")
+            question = row['question']
+            db_id = row['db_id']
+            schema_links = None
+            while schema_links is None:
+                try:
+                    schema_links = GPT4_generation(
+                        schema_linking_prompt_maker(question, db_id))
+                except:
+                    time.sleep(3)
+                    pass
             try:
-                debugged_SQL = GPT4_debug(debuger(question, db_id, SQL)).replace("\n", " ")
-                print("debugger generation done 6/6")
+                schema_links = schema_links.split("Schema_links: ")[1]
             except:
-                time.sleep(3)
-                pass
-        SQL = "SELECT " + debugged_SQL
-        print(SQL)
-        CODEX.append([question, SQL, sql, db_id])
-        #break
-    df = pd.DataFrame(CODEX, columns=['NLQ', 'PREDICTED SQL', 'GOLD SQL', 'DATABASE'])
-    results = df['PREDICTED SQL'].tolist()
-    with open(OUTPUT_FILE, 'w') as f:
-        for line in results:
-            f.write(f"{line}\n")
+                print("Slicing error for the schema_linking module")
+                schema_links = "[]"
+            # print(schema_links)
+            classification = None
+            while classification is None:
+                try:
+                    classification = GPT4_generation(
+                        classification_prompt_maker(question, db_id, schema_links[1:]))
+                except:
+                    time.sleep(3)
+                    pass
+            try:
+                predicted_class = classification.split("Label: ")[1]
+            except:
+                print("Slicing error for the classification module")
+                predicted_class = '"NESTED"'
+            # print(classification)
+            if '"EASY"' in predicted_class:
+                print("EASY")
+                SQL = None
+                while SQL is None:
+                    try:
+                        SQL = GPT4_generation(easy_prompt_maker(question, db_id, schema_links))
+                    except:
+                        time.sleep(3)
+                        pass
+            elif '"NON-NESTED"' in predicted_class:
+                print("NON-NESTED")
+                SQL = None
+                while SQL is None:
+                    try:
+                        SQL = GPT4_generation(medium_prompt_maker(question, db_id, schema_links))
+                    except:
+                        time.sleep(3)
+                        pass
+                try:
+                    SQL = SQL.split("SQL: ")[1]
+                except:
+                    print("SQL slicing error")
+                    SQL = "SELECT"
+            else:
+                try:
+                    sub_questions = classification.split('questions = ["')[1].split('"]')[0]
+                except IndexError:
+                    sub_questions = question
+                print("NESTED")
+                SQL = None
+                while SQL is None:
+                    try:
+                        SQL = GPT4_generation(
+                            hard_prompt_maker(question, db_id, schema_links, sub_questions))
+                    except:
+                        time.sleep(3)
+                        pass
+                try:
+                    SQL = SQL.split("SQL: ")[1]
+                except:
+                    print("SQL slicing error")
+                    SQL = "SELECT"
+            print(SQL)
+            debugged_SQL = None
+            while debugged_SQL is None:
+                try:
+                    debugged_SQL = GPT4_debug(debuger(question, db_id, SQL)).replace("\n", " ")
+                except:
+                    time.sleep(3)
+                    pass
+            SQL = "SELECT " + debugged_SQL
+            print(SQL)
+            CODEX.append([question, SQL, row['query'], db_id])
+            # break
+        df = pd.DataFrame(CODEX, columns=['NLQ', 'PREDICTED SQL', 'GOLD SQL', 'DATABASE'])
+        results = df['PREDICTED SQL'].tolist()
+        with open(OUTPUT_FILE_1, 'w') as f:
+            for line in results:
+                f.write(f"{line}\n")
+    task = 'Spider'
+    if task == 'CoSQL':
+        dataset = pd.read_json(DATASET)
+        gold = []
+        for index, row in dataset[:100].iterrows():
+            dict_round = {}
+            dict_round['query'] = row['interaction'][0]['query']
+            dict_round['db_id'] = row['database_id']
+            gold.append(dict_round)
+    else:
+        dataset = pd.read_json(DATASET)
+        gold = []
+        for index, row in dataset[:100].iterrows():
+            dict_round = {}
+            dict_round['query'] = row['query']
+            dict_round['db_id'] = row['db_id']
+            gold.append(dict_round)
 
-#0.27
+    with open(OUTPUT_FILE_2, 'w') as f:
+        for item in gold:
+            f.write(f"{item['query']}\t{item['db_id']}\n")
