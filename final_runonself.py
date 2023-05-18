@@ -1,8 +1,10 @@
+import glob
 import json
 from transformers import T5ForConditionalGeneration, T5Tokenizer,T5Config, Seq2SeqTrainingArguments,Seq2SeqTrainer,TrainerCallback,Trainer,TrainingArguments
 from datasets.arrow_dataset import Dataset
 import nltk
 import torch
+import os
 from Evaluation_self import evaluate,evaluate_test
 
 from transformers import Trainer
@@ -21,7 +23,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def load_data():
+    # path
+    data_path = "./dataset_final/data"
+    schema_path = "./dataset_final/schemas"
+    data_files = glob.glob(f'{data_path}/*.json')
+    schema_files = glob.glob(f'{schema_path}/*.json')
 
+    data =  []
+    schemas = {}
+
+    # Load data
+    for file in data_files:
+        with open(file, 'r') as f:
+            file_data = json.load(f)
+            # Here we use the filename as the db_id
+            db_id = os.path.basename(file).replace('.json', '')
+            for entry in file_data:
+                entry['db_id'] = db_id
+                data.append(entry)
+
+    # Load schemas
+    for file in schema_files:
+        with open(file, 'r') as f:
+            file_schema = json.load(f)
+            db_id = os.path.basename(file).replace('.json', '')
+            schemas[db_id] = []
+            # Concatenate table schemas
+            for table_name, table_schema in file_schema.items():
+                table_schema_str = ', '.join([f"{col_name}: {col_type}" for col_name, col_type in table_schema.items()])
+                schemas[db_id].append(f"{table_name} | {table_schema_str}")
+            schemas[db_id] = ' || '.join(schemas[db_id])
+    return data, schemas
 
 
 def preprocess_function(example, tokenizer, db_id_to_content):
@@ -41,47 +74,18 @@ def preprocess_function(example, tokenizer, db_id_to_content):
 
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    # model_name = 't5-3b'
-    # tokenizer_name = 't5-3b'
-    model_name = "./checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq/checkpoint-8000"
-    tokenizer_name = "tscholak/cxmefzzi"
+    model_name = 't5-3b'
+    tokenizer_name = 't5-3b'
+    # model_name = "./checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq/checkpoint-8000"
+    # tokenizer_name = "tscholak/cxmefzzi"
     # config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
     config = T5Config.from_pretrained(model_name)
     config.max_length = 512
     model = T5ForConditionalGeneration.from_pretrained(model_name, config=config).to(device)
     tokenizer = T5Tokenizer.from_pretrained(tokenizer_name,model_max_length=512)
 
-    with open('./spider_local/train_spider.json', 'r') as f:
-        train_data = json.load(f)
-    # need to change how it load: as the newdataset is in ./dataset_final
-    # the json files in ./dataset_final/data has format like  {
-    #         "text": "Insert a new vendor into the Vendors table:",
-    #         "sql": "INSERT INTO Vendors (VendorName, ContactName, Phone, Email) VALUES ('XYZ Suppliers', 'Mark Johnson', '555-9876', 'mark@xyzsuppliers.com');"
-    #     }
-    # the json files in ./dataset_final/schemas has format like {
-    #     "Vendors": {
-    #         "Phone": "TEXT",
-    #         "VendorName": "TEXT",
-    #         "Email": "TEXT",
-    #         "ContactName": "TEXT",
-    #         "VendorID": "INTEGER",
-    #         "VendorPhone": "TEXT",
-    #         "VendorAddress": "TEXT",
-    #         "PhoneNumber": "INTEGER",
-    #         "Address": "TEXT",
-    #         "City": "TEXT",
-    #         "State": "TEXT",
-    #         "ZipCode": "INTEGER"
-    #     },
-    #     "Accounts": {
-    #         "AccountBalance": "INTEGER",
-    #         "AccountName": "INTEGER",
-    #         "AccountType": "INTEGER",
-    #         "AccountID": "INTEGER",
-    #         "Category": "TEXT",
-    #         "AccountSubtype": "INTEGER"
-    #     },
-    # Please help me to write code to load the data and schemas so that the input is : question + schema, expected output is the sql query
+       # Load data
+    train_data, schemas = load_data()
 
     with open('./spider_local/dev.json', 'r') as f:
         eval_data = json.load(f)
