@@ -4,7 +4,6 @@ import openai
 import os
 import sys
 import tiktoken
-import signal
 
 
 #----------------------------------------------------prompts-----------------------------------------------
@@ -507,7 +506,6 @@ def GPT4_generation(prompt):
     top_p = 1.0,
     frequency_penalty=0.0,
     presence_penalty=0.0,
-    stop = ["Q:"]
     )
     return response['choices'][0]['message']['content']
 
@@ -528,7 +526,6 @@ def GPT4_debug(prompt):
     top_p = 1.0,
     frequency_penalty=0.0,
     presence_penalty=0.0,
-    stop = ["#", ";","\n\n"]
     )
     return response['choices'][0]['message']['content']
 
