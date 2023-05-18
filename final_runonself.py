@@ -7,7 +7,7 @@ import torch
 import os
 from Evaluation_self import evaluate,evaluate_test
 
-from transformers import Trainer
+os.environ['MASTER_PORT'] = '29501'
 with open('./tables_new_picard.json', 'r') as f:
     tables_new = json.load(f)
 
@@ -47,7 +47,7 @@ def load_data():
     for file in schema_files:
         with open(file, 'r') as f:
             file_schema = json.load(f)
-            db_id = os.path.basename(file).replace('.json', '')
+            db_id = os.path.basename(file).replace('.schema.json', '')
             schemas[db_id] = []
             # Concatenate table schemas
             for table_name, table_schema in file_schema.items():
@@ -91,8 +91,8 @@ def main():
         eval_data = json.load(f)
 
     db_id_train = [entry["db_id"] for entry in train_data]
-    query_train = [entry["query"] for entry in train_data]
-    question_train = [entry["question"] for entry in train_data]
+    query_train = [entry["sql"] for entry in train_data]
+    question_train = [entry["text"] for entry in train_data]
 
 
     dataset_train = Dataset.from_dict({
@@ -116,7 +116,7 @@ def main():
     dataset_eval = dataset_eval
 
     # Preprocess the data
-    dataset = dataset_train.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
+    dataset = dataset_train.map(lambda e: preprocess_function(e, tokenizer, schemas), batched=True)
     eval_dataset = dataset_eval.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
 
     # dataset = load_dataset("spider", split='train').shuffle(seed=42).select(range(20))
@@ -126,7 +126,7 @@ def main():
 
 
     training_args = Seq2SeqTrainingArguments(
-        output_dir="checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq_2",
+        output_dir="checkpoints/T5-3B/slefdata_batch2_zero3_epoch50_lr1e4_seq2seq_2",
         deepspeed="./deepspeed_config.json",
         num_train_epochs=50,
         learning_rate=8e-5,
@@ -188,7 +188,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-## deepspeed --include localhost:0,1,2,3 finaltest_trainer_eval.py | use this code to choose GPUs to run
+## deepspeed --include localhost:5 final_runonself.py | use this code to choose GPUs to run
 ## Try to remove /.cache/pytorch_extensions if stuck somewhere
 ## add activation_checkpointing in ds_config if oom(batch = 16,without: 20GB/GPU, with: 26GB/GPU
 ## need to run the script provided by deepspeed to convert the model to normal torch model
