@@ -25,14 +25,13 @@ for db in input_json:
 
     content = []
     for table_name, columns in tables_dict.items():
-        content.append(f"{table_name}: {',  '.join(columns)}")
-    # content_str = '  |  '.join(content)
-    content_str = f"| {db_id} | " + ' | '.join(content)
+        content.append(f"|| {table_name} | {', '.join(columns)}")
+    content_str = f"||| {db_id} " + ' '.join(content)
     output_json.append({
         'db_id': db_id,
         'content': content_str
     })
-# print(output_json)
-# # Write output JSON file
+
+# Write output JSON file
 with open('./tables_new_picard.json', 'w') as outfile:
     json.dump(output_json, outfile, indent=2)
