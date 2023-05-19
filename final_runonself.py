@@ -86,7 +86,10 @@ def main():
 
        # Load data
     train_data, schemas = load_data()
-
+    print("This is train data\n")
+    print(train_data[0])
+    print("\nThis is schemas\n")
+    print(schemas[0])
     with open('./spider_local/dev.json', 'r') as f:
         eval_data = json.load(f)
 
@@ -123,13 +126,14 @@ def main():
     # dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
     # eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(20))
     # eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
-
+    print("\n sample of dataset after processing\n")
+    print(dataset[0])
 
     training_args = Seq2SeqTrainingArguments(
         output_dir="checkpoints/T5-3B/slefdata_batch2_zero3_epoch50_lr1e4_seq2seq_2",
         deepspeed="./deepspeed_config.json",
         num_train_epochs=50,
-        learning_rate=8e-5,
+        learning_rate=1e-4,
         per_device_train_batch_size=1,
         per_device_eval_batch_size=2,
         gradient_accumulation_steps=1, # dafault is 1
