@@ -52,9 +52,11 @@ def load_data():
             # Concatenate table schemas
             for table_name, table_schema in file_schema.items():
                 table_schema_str = ', '.join([f"{col_name}" for col_name, col_type in table_schema.items()])
-                schemas[db_id].append(f"{table_name} | {table_schema_str}")
+                # Modified this line to fit your format
+                schemas[db_id].append(f"{db_id} || {table_name} || {table_schema_str}")
             schemas[db_id] = ' || '.join(schemas[db_id])
     return data, schemas
+
 
 
 def preprocess_function(example, tokenizer, db_id_to_content):
@@ -65,6 +67,7 @@ def preprocess_function(example, tokenizer, db_id_to_content):
     output_tokenized = tokenizer(queries, return_tensors="pt", max_length=512, truncation=True, padding="max_length")
 
     return {
+        "input_text": questions,
         "input_ids": input_tokenized["input_ids"],
         "attention_mask": input_tokenized["attention_mask"],
         "labels": output_tokenized["input_ids"],
