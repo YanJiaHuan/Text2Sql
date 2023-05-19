@@ -51,7 +51,7 @@ def load_data():
             schemas[db_id] = []
             # Concatenate table schemas
             for table_name, table_schema in file_schema.items():
-                table_schema_str = ', '.join([f"{col_name}: {col_type}" for col_name, col_type in table_schema.items()])
+                table_schema_str = ', '.join([f"{col_name}" for col_name, col_type in table_schema.items()])
                 schemas[db_id].append(f"{table_name} | {table_schema_str}")
             schemas[db_id] = ' || '.join(schemas[db_id])
     return data, schemas
@@ -89,7 +89,7 @@ def main():
     print("This is train data\n")
     print(train_data[0])
     print("\nThis is schemas\n")
-    print(schemas[0])
+    print(schemas['soapstone_carving'])
     with open('./spider_local/dev.json', 'r') as f:
         eval_data = json.load(f)
 
