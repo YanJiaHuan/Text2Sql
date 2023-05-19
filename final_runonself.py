@@ -48,14 +48,17 @@ def load_data():
         with open(file, 'r') as f:
             file_schema = json.load(f)
             db_id = os.path.basename(file).replace('.schema.json', '')
-            schemas[db_id] = []
+            # Initialize with db_id
+            db_id = '|||'.join(db_id)
+            schemas[db_id] = [db_id]
             # Concatenate table schemas
             for table_name, table_schema in file_schema.items():
                 table_schema_str = ', '.join([f"{col_name}" for col_name, col_type in table_schema.items()])
-                # Modified this line to fit your format
-                schemas[db_id].append(f"{db_id} ||| {table_name} || {table_schema_str}")
+                # Add only the table_name and table_schema_str
+                schemas[db_id].append(f"{table_name} | {table_schema_str}")
             schemas[db_id] = ' || '.join(schemas[db_id])
     return data, schemas
+
 
 
 
