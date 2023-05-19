@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 def load_data():
     # path
-    data_path = "./dataset_final/data"
-    schema_path = "./dataset_final/schemas"
+    data_path = "./dataset_final_after/data"
+    schema_path = "./dataset_final_after/schemas"
     data_files = glob.glob(f'{data_path}/*.json')
     schema_files = glob.glob(f'{schema_path}/*.json')
 
@@ -37,7 +37,6 @@ def load_data():
     for file in data_files:
         with open(file, 'r') as f:
             file_data = json.load(f)
-            # Here we use the filename as the db_id
             db_id = os.path.basename(file).replace('.json', '')
             for entry in file_data:
                 entry['db_id'] = db_id
@@ -48,15 +47,10 @@ def load_data():
         with open(file, 'r') as f:
             file_schema = json.load(f)
             db_id = os.path.basename(file).replace('.schema.json', '')
-            # Initialize with db_id
-            db_id_content = ' ||| '+db_id
-            schemas[db_id] = [db_id_content]
-            # Concatenate table schemas
-            for table_name, table_schema in file_schema.items():
-                table_schema_str = ', '.join([f"{col_name}" for col_name, col_type in table_schema.items()])
-                # Add only the table_name and table_schema_str
-                schemas[db_id].append(f"{table_name} | {table_schema_str}")
-            schemas[db_id] = ' || '.join(schemas[db_id])
+            schemas[db_id] = {}
+            for table_name, table_content in file_schema.items():
+                table_schema = ', '.join([f"{col_name}" for col_name in table_content.keys()])  # Get column names
+                schemas[db_id][table_name] = table_schema
     return data, schemas
 
 
@@ -77,6 +71,37 @@ def preprocess_function(example, tokenizer, db_id_to_content):
         "db_id": example["db_id"],
         "gold_query": example["query"]
     }
+def preprocess_function_for_self_data(batch, tokenizer, schemas):
+    output = {
+        "input_text": [],
+        "input_ids": [],
+        "attention_mask": [],
+        "labels": [],
+        "db_id": [],
+        "gold_query": [],
+    }
+    for example in zip(batch['question'], batch['db_id'], batch['query'], batch['tables']):
+        question, db_id, queries, tables = example
+
+        # concatenate db_id with |||
+        content = f"{question} ||| {db_id}"
+
+        for table in tables:
+            table_schema = schemas[db_id][table].split(", ")
+            content += f" || {table} | {', '.join(table_schema)}"
+
+        input_tokenized = tokenizer(content, return_tensors="pt", max_length=512, truncation=True, padding="max_length")
+        output_tokenized = tokenizer(queries, return_tensors="pt", max_length=512, truncation=True, padding="max_length")
+
+        output["input_text"].append(content)
+        output["input_ids"].append(input_tokenized["input_ids"][0])
+        output["attention_mask"].append(input_tokenized["attention_mask"][0])
+        output["labels"].append(output_tokenized["input_ids"][0])
+        output["db_id"].append(db_id)
+        output["gold_query"].append(queries)
+
+    return output
+
 
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -92,22 +117,24 @@ def main():
 
        # Load data
     train_data, schemas = load_data()
-    print("This is train data\n")
-    print(train_data[0])
-    print("\nThis is schemas\n")
-    print(schemas['soapstone_carving'])
+
     with open('./spider_local/dev.json', 'r') as f:
         eval_data = json.load(f)
 
     db_id_train = [entry["db_id"] for entry in train_data]
     query_train = [entry["sql"] for entry in train_data]
     question_train = [entry["text"] for entry in train_data]
-
+    tables_train = [entry["tables"] for entry in train_data]
+    yc_hardness_train = [entry["yc_hardness"] for entry in train_data]
+    ts_hardness_train = [entry["ts_hardness"] for entry in train_data]
 
     dataset_train = Dataset.from_dict({
         "db_id": db_id_train,
         "query": query_train,
         "question": question_train,
+        "tables": tables_train,
+        "yc_hardness": yc_hardness_train,
+        "ts_hardness": ts_hardness_train
     })
     db_id_eval = [entry["db_id"] for entry in eval_data]
     query_eval = [entry["query"] for entry in eval_data]
@@ -123,17 +150,10 @@ def main():
     # Shuffle and select a subset of the data, if needed
     dataset_train = dataset_train.shuffle(seed=42)
     dataset_eval = dataset_eval
-
     # Preprocess the data
-    dataset = dataset_train.map(lambda e: preprocess_function(e, tokenizer, schemas), batched=True)
+    dataset = dataset_train.map(lambda e: preprocess_function_for_self_data(e, tokenizer, schemas), batched=True)
     eval_dataset = dataset_eval.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
 
-    # dataset = load_dataset("spider", split='train').shuffle(seed=42).select(range(20))
-    # dataset = dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
-    # eval_dataset = load_dataset("spider", split='validation').shuffle(seed=42).select(range(20))
-    # eval_dataset = eval_dataset.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
-    print("\n sample of dataset after processing\n")
-    print(dataset[0])
 
     training_args = Seq2SeqTrainingArguments(
         output_dir="checkpoints/T5-3B/slefdata_batch2_zero3_epoch50_lr1e4_seq2seq_2",
