@@ -49,8 +49,8 @@ def load_data():
             file_schema = json.load(f)
             db_id = os.path.basename(file).replace('.schema.json', '')
             # Initialize with db_id
-            db_id = '|||'.join(db_id)
-            schemas[db_id] = [db_id]
+            # db_id = '|||'.join(db_id)
+            schemas[db_id] = ['|||'.join(db_id)]
             # Concatenate table schemas
             for table_name, table_schema in file_schema.items():
                 table_schema_str = ', '.join([f"{col_name}" for col_name, col_type in table_schema.items()])
