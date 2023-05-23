@@ -165,7 +165,7 @@ def main():
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
         eval_steps=1,
-        save_steps=6000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
+        save_steps=5000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
         predict_with_generate=True,

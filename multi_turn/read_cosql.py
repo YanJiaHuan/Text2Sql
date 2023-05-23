@@ -198,7 +198,7 @@ if __name__ == '__main__':
 ###########################################################################################
     spider_schema,spider_primary,spider_foreign = creatiing_schema(DATASET_SCHEMA)
     val_df = load_data(DATASET)
-    for sample in val_df:
+    for sample in val_df.iterrows():
         db_name = sample['database_id']
         question_final = sample['final']['utterance']
         query_final = sample['final']['query']

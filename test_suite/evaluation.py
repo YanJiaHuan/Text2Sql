@@ -787,7 +787,7 @@ def isValidSQL(sql, db):
 
 def print_formated_s(row_name, l, element_format):
     template = "{:20} " + " ".join([element_format] * len(l))
-    print(template.format(row_name, *l))
+    # print(template.format(row_name, *l))
 
 
 def print_scores(scores, etype, include_turn_acc=True):
@@ -802,28 +802,28 @@ def print_scores(scores, etype, include_turn_acc=True):
     print_formated_s("count", counts, "{:<20d}")
 
     if etype in ["all", "exec"]:
-        print("=====================   EXECUTION ACCURACY     =====================")
+        # print("=====================   EXECUTION ACCURACY     =====================")
         exec_scores = [scores[level]["exec"] for level in levels]
-        print_formated_s("execution", exec_scores, "{:<20.3f}")
+        # print_formated_s("execution", exec_scores, "{:<20.3f}")
 
     if etype in ["all", "match"]:
-        print("\n====================== EXACT MATCHING ACCURACY =====================")
+        # print("\n====================== EXACT MATCHING ACCURACY =====================")
         exact_scores = [scores[level]["exact"] for level in levels]
-        print_formated_s("exact match", exact_scores, "{:<20.3f}")
+        # print_formated_s("exact match", exact_scores, "{:<20.3f}")
         print("\n---------------------PARTIAL MATCHING ACCURACY----------------------")
         for type_ in partial_types:
             this_scores = [scores[level]["partial"][type_]["acc"] for level in levels]
-            print_formated_s(type_, this_scores, "{:<20.3f}")
+            # print_formated_s(type_, this_scores, "{:<20.3f}")
 
-        print("---------------------- PARTIAL MATCHING RECALL ----------------------")
+        # print("---------------------- PARTIAL MATCHING RECALL ----------------------")
         for type_ in partial_types:
             this_scores = [scores[level]["partial"][type_]["rec"] for level in levels]
-            print_formated_s(type_, this_scores, "{:<20.3f}")
+            # print_formated_s(type_, this_scores, "{:<20.3f}")
 
         print("---------------------- PARTIAL MATCHING F1 --------------------------")
         for type_ in partial_types:
             this_scores = [scores[level]["partial"][type_]["f1"] for level in levels]
-            print_formated_s(type_, this_scores, "{:<20.3f}")
+            # print_formated_s(type_, this_scores, "{:<20.3f}")
 
     if include_turn_acc:
         print()
@@ -833,16 +833,16 @@ def print_scores(scores, etype, include_turn_acc=True):
         print_formated_s("count", counts, "{:<20d}")
 
         if etype in ["all", "exec"]:
-            print(
-                "=====================   TURN EXECUTION ACCURACY     ====================="
-            )
+            # print(
+            #     "=====================   TURN EXECUTION ACCURACY     ====================="
+            # )
             exec_scores = [scores[turn]["exec"] for turn in turns]
             print_formated_s("execution", exec_scores, "{:<20.3f}")
 
         if etype in ["all", "match"]:
-            print(
-                "\n====================== TURN EXACT MATCHING ACCURACY ====================="
-            )
+            # print(
+            #     "\n====================== TURN EXACT MATCHING ACCURACY ====================="
+            # )
             exact_scores = [scores[turn]["exact"] for turn in turns]
             print_formated_s("exact match", exact_scores, "{:<20.3f}")
 
@@ -919,10 +919,11 @@ def evaluate(
 
     evaluator.finalize()
     print_scores(evaluator.scores, etype, include_turn_acc=include_turn_acc)
-    return {
-        "per_item": results,
-        "total_scores": evaluator.scores
-    }
+    # return {
+    #     "per_item": results,
+    #     "total_scores": evaluator.scores
+    # }
+    return evaluator.scores
 
 
 # Rebuild SQL functions for value evaluation
