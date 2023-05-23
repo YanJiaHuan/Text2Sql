@@ -923,7 +923,7 @@ def evaluate(
     #     "per_item": results,
     #     "total_scores": evaluator.scores
     # }
-    return evaluator.scores
+    return evaluator.scores['joint_all']['exec']
 
 
 # Rebuild SQL functions for value evaluation

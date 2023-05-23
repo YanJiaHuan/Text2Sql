@@ -12,19 +12,28 @@ please help me generate the corresponding SQL query with no further explaination
 '''
 three_shots_SQL_generation_prompt = '''
 Here is some examples of EASY, MEDIUM and HARD SQL queries.
+
 SELECT count(*) FROM singer 
 SELECT avg(weight) ,  pettype FROM pets GROUP BY pettype
 SELECT T1.fname ,  T1.age FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'dog' AND T1.stuid NOT IN (SELECT T1.stuid FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'cat')
 '''
+
+zero_shots_SQL_generation_prompt = '''
+Sorry, I won't give you any examples. Please generate based on your own semantic parsing ability.
+'''
+
 checker_prompt = '''
 Please help me generate the corresponding SQL query with no further explaination.
 '''
 
+Contextual_prompt = '''
+Now I will give you some context (question and your own answer). Please generate the corresponding SQL query with no further explaination.
+'''
 
 #################### 1. Set up  ####################
 #----------------------------------------------------------------------------------------------------------
 
-API_KEY = "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" # 自己的
+API_KEY = "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" # 自己的
 # API_KEY = "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"  # 买的
 # API_KEY = "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" # gpt4 孙哥
 os.environ["OPENAI_API_KEY"] = API_KEY
@@ -194,22 +203,66 @@ def load_breaker():
 
 
 
+
 if __name__ == '__main__':
 ###########################################################################################
     spider_schema,spider_primary,spider_foreign = creatiing_schema(DATASET_SCHEMA)
     val_df = load_data(DATASET)
-    for sample in val_df.iterrows():
-        db_name = sample['database_id']
-        question_final = sample['final']['utterance']
-        query_final = sample['final']['query']
-        print('db_name:',db_name)
-        print('question_final:',question_final)
-        print('query_final:',query_final)
-        for dialog in sample.inetraction:
-            question = dialog['utterance']
-            query = dialog['query']
-            print('dialog/question:',question)
-            print('dialog/query:',query)
+    for index,sample in val_df.iterrows():
+        print('index:',index)
+        db_id = sample['database_id'] # e.g.'car_1'
+        question_final = sample['final']['utterance'] # e.g.'How many car models are produced by each maker? List the count and the maker full name.'
+        query_final = sample['final']['query'] # e.g.'SELECT COUNT(*) FROM car_1 WHERE car_1.id = 1'
+        schema = find_fields_MYSQL_like(db_id) + '\n' + "foreign key:" + find_foreign_keys_MYSQL_like(
+            db_id) + '\n' + "primary key:" + find_primary_keys_MYSQL_like(db_id)  #
+        '''  
+        schema: Table car_makers, columns = [*,Id,Maker,FullName,Country]
+        Table car_names, columns = [*,MakeId,Model,Make]
+        Table cars_data, columns = [*,Id,MPG,Cylinders,Edispl,Horsepower,Weight,Accelerate,Year]
+        Table continents, columns = [*,ContId,Continent]
+        Table countries, columns = [*,CountryId,CountryName,Continent]
+        Table model_list, columns = [*,ModelId,Maker,Model]
+
+        foreign key:[countries.Continent = continents.ContId,car_makers.Country = countries.CountryId,model_list.Maker = car_makers.Id,car_names.Model = model_list.Model,cars_data.Id = car_names.MakeId]
+        primary key:[continents.ContId,countries.CountryId,car_makers.Id,model_list.ModelId,car_names.MakeId,cars_data.Id]
+        '''
+        # for first round:
+        # input: question+db_id+schema+three_sqls
+        # output: sql
+        # for other rounds and final round:
+        # input: question + message + generated_sql
+        # output: sql
+        message = ''
+        history = {}
+        for round, dialog in enumerate(sample['interaction']): # assueme the goal it to output the final sql by using final question and dialog information
+            print(f'The {round} round of dialog in sample {index}:') # each sample has at least 1 previous conversation
+            question_round = dialog['utterance']
+            query_round = dialog['query']
+            if round == 0:
+                message = message + \
+                          SQL_generation_prompt + \
+                          "\nQuestion:" + question_round + \
+                          "\ndatabase:" + db_id + \
+                          "\ndatabase chema:" + schema + \
+                          "\nSome samples to text2sql:" + zero_shots_SQL_generation_prompt
+                print('message:',message)
+                SQL, limit_marker = GPT4_generation(message)
+                print('\nGPT generated SQL:',SQL)
+                history['question'] = question_round
+                history['query'] = SQL
+            else:
+                message = message + \
+                          Contextual_prompt + \
+                          "\nThis is previous question:" + history['question'] + \
+                          "\nThis is your previous generated SQl:" + history['query']+ \
+                          "\nQuestion:"+ question_round
+            print('message:',message)
+            SQL, limit_marker = GPT4_generation(message)
+            print('\nGPT generated SQL:',SQL)
+            history['question'] = question_round
+            history['query'] = SQL
+
+
 
 
 # CUDA_VISIBLE_DEVICES=7 python read_cosql.py
