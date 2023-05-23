@@ -5,8 +5,7 @@ from datasets.arrow_dataset import Dataset
 import nltk
 import torch
 import os
-from Evaluation_self import evaluate,evaluate_test
-
+from test_suite.evaluation import *
 os.environ['MASTER_PORT'] = '29501'
 with open('./tables_new_picard.json', 'r') as f:
     tables_new = json.load(f)
@@ -160,13 +159,13 @@ def main():
         deepspeed="./deepspeed_config.json",
         num_train_epochs=50,
         learning_rate=1e-4,
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=2,
         per_device_eval_batch_size=2,
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
         eval_steps=1000,
-        save_steps=2000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
+        save_steps=6000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
         predict_with_generate=True,
@@ -218,7 +217,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-## deepspeed --include localhost:5,6 final_runonself.py | use this code to choose GPUs to run
+## deepspeed --include localhost:0,1,2 final_runonself.py | use this code to choose GPUs to run
 ## Try to remove /.cache/pytorch_extensions if stuck somewhere
 ## add activation_checkpointing in ds_config if oom(batch = 16,without: 20GB/GPU, with: 26GB/GPU
 ## need to run the script provided by deepspeed to convert the model to normal torch model
