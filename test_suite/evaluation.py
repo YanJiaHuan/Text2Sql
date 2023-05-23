@@ -857,7 +857,7 @@ def evaluate(
     keep_distinct,
     progress_bar_for_each_datapoint,
 ):
-
+    kmaps = build_foreign_key_map_from_json(kmaps)
     with open(gold) as f:
         glist = []
         gseq_one = []
