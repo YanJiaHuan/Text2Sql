@@ -188,6 +188,10 @@ def main():
             db_id.append(result.group(1).strip())
         genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
         gold_queries_and_db_ids = []
+        with open("./test_suite/temp/pred.txt", 'w') as file:
+            for query in genetrated_queries:
+                file.write(query + "\n")
+
         with open("./test_suite/gold.txt", 'r') as file:
             for line in file:
                 # Split the line by the tab character '\t'
@@ -195,12 +199,15 @@ def main():
 
                 # Append the query and db_id as a tuple to the list
                 gold_queries_and_db_ids.append((query, db_id))
+
+        gold = './test_suite/gold.txt'
+        pred = './test_suite/temp/pred.txt'
         db_dir = './database'
         etype = 'all'
         table = './tables.json'
         # print("now you see")
 
-        score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table, plug_value=False, keep_distinct=False, progress_bar_for_each_datapoint=False)
+        score = evaluate(gold, pred, db_dir, etype, table, plug_value=False, keep_distinct=False, progress_bar_for_each_datapoint=False)
         print(f"Execution Accuracy: {score}")
         return {"exec":score}  # 必须返回字典
 
