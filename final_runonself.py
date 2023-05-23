@@ -164,7 +164,7 @@ def main():
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=1000,
+        eval_steps=1,
         save_steps=6000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
@@ -188,7 +188,7 @@ def main():
             db_id.append(result.group(1).strip())
         genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
         gold_queries_and_db_ids = []
-        with open("./Evaluation_file/gold_example_1e4__checkpoint-10000.txt", 'r') as file:
+        with open("./test_suite/gold.txt", 'r') as file:
             for line in file:
                 # Split the line by the tab character '\t'
                 query, db_id = line.strip().split('\t')
@@ -199,7 +199,8 @@ def main():
         etype = 'all'
         table = './tables.json'
         # print("now you see")
-        score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table)
+
+        score = evaluate(gold_queries_and_db_ids, genetrated_queries, db_dir, etype, table, plug_value=False, keep_distinct=False, progress_bar_for_each_datapoint=False)
         print(f"Execution Accuracy: {score}")
         return {"exec":score}  # 必须返回字典
 

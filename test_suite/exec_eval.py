@@ -13,7 +13,7 @@ import pickle as pkl
 import subprocess
 from itertools import chain
 
-from parse import get_all_preds_for_execution, remove_distinct
+from .parse import get_all_preds_for_execution, remove_distinct
 
 
 threadLock = threading.Lock()

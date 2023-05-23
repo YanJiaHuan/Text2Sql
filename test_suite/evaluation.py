@@ -24,8 +24,8 @@ import json
 import sqlite3
 import argparse
 
-from process_sql import get_schema, Schema, get_sql
-from exec_eval import eval_exec_match
+from .process_sql import get_schema, Schema, get_sql
+from .exec_eval import eval_exec_match
 
 # Flag to disable value evaluation
 LEVELS = ["easy", "medium", "hard", "extra", "all", "joint_all"]
@@ -1146,47 +1146,28 @@ def build_foreign_key_map_from_json(table):
 
 
 if __name__ == "__main__":
-    class Arguments:
-        def __init__(self):
-            task = 'Spider'
-            if task == 'Spider':
-                self.gold = '/Users/yan/Desktop/Project/Text2Sql/multi_turn/Spider/gold_sql.txt'
-                self.pred = '/Users/yan/Desktop/Project/Text2Sql/multi_turn/Spider/predicted_sql.txt'
-                self.db = './database'
-                self.table = '/Users/yan/Desktop/text2sql/spider/tables.json'
-                self.etype = 'all'
-                self.plug_value = False
-                self.keep_distinct = False
-                self.progress_bar_for_each_datapoint = False
-            else:
-                self.gold = '/Users/yan/Desktop/Project/Text2Sql/multi_turn/gold_sql.txt'
-                self.pred = '/Users/yan/Desktop/Project/Text2Sql/multi_turn/predicted_sql.txt'
-                self.db = './database'
-                self.table = '/Users/yan/Desktop/text2sql/cosql_dataset/tables.json'
-                self.etype = 'all'
-                self.plug_value = False
-                self.keep_distinct = False
-                self.progress_bar_for_each_datapoint = False
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gold', dest='gold', type=str)
+    parser.add_argument('--pred', dest='pred', type=str)
+    parser.add_argument('--db', dest='db', type=str)
+    parser.add_argument('--table', dest='table', type=str)
+    parser.add_argument('--etype', dest='etype', type=str)
+    args = parser.parse_args()
 
-    args = Arguments()
+    gold = args.gold
+    pred = args.pred
+    db_dir = args.db
+    table = args.table
+    etype = args.etype
+    plug_value = False
+    keep_distinct = False
+    progress_bar_for_each_datapoint = False
 
-    # only evaluting exact match needs this argument
-    kmaps = None
-    if args.etype in ["all", "match"]:
-        assert (
-            args.table is not None
-        ), "table argument must be non-None if exact set match is evaluated"
-        kmaps = build_foreign_key_map_from_json(args.table)
+    assert etype in ["all", "exec", "match"], "Unknown evaluation method"
 
-    evaluate(
-        args.gold,
-        args.pred,
-        args.db,
-        args.etype,
-        kmaps,
-        args.plug_value,
-        args.keep_distinct,
-        args.progress_bar_for_each_datapoint,
-    )
+    kmaps = build_foreign_key_map_from_json(table)
+
+    evaluate(gold, pred, db_dir, etype, kmaps, plug_value, keep_distinct, progress_bar_for_each_datapoint)
+
 
