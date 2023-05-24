@@ -65,7 +65,7 @@ def preprocess_function(example, tokenizer, db_id_to_content):
     return {
         "input_text": questions,
         "input_ids": input_tokenized["input_ids"],
-        "attention_mask": input_tokenized["attention_mask"],
+        # "attention_mask": input_tokenized["attention_mask"],
         "labels": output_tokenized["input_ids"],
         "db_id": example["db_id"],
         "gold_query": example["query"]
@@ -74,7 +74,7 @@ def preprocess_function_for_self_data(batch, tokenizer, schemas):
     output = {
         "input_text": [],
         "input_ids": [],
-        "attention_mask": [],
+        # "attention_mask": [],
         "labels": [],
         "db_id": [],
         "gold_query": [],
@@ -94,7 +94,7 @@ def preprocess_function_for_self_data(batch, tokenizer, schemas):
 
         output["input_text"].append(content)
         output["input_ids"].append(input_tokenized["input_ids"][0])
-        output["attention_mask"].append(input_tokenized["attention_mask"][0])
+        # output["attention_mask"].append(input_tokenized["attention_mask"][0])
         output["labels"].append(output_tokenized["input_ids"][0])
         output["db_id"].append(db_id)
         output["gold_query"].append(queries)
@@ -120,12 +120,12 @@ def main():
     with open('./spider_local/dev.json', 'r') as f:
         eval_data = json.load(f)
 
-    db_id_train = [entry["db_id"] for entry in train_data]
-    query_train = [entry["sql"] for entry in train_data]
-    question_train = [entry["text"] for entry in train_data]
-    tables_train = [entry["tables"] for entry in train_data]
-    yc_hardness_train = [entry["yc_hardness"] for entry in train_data]
-    ts_hardness_train = [entry["ts_hardness"] for entry in train_data]
+    db_id_train = [entry["db_id"] for entry in train_data[:100]]
+    query_train = [entry["sql"] for entry in train_data[:100]]
+    question_train = [entry["text"] for entry in train_data[:100]]
+    tables_train = [entry["tables"] for entry in train_data[:100]]
+    yc_hardness_train = [entry["yc_hardness"] for entry in train_data[:100]]
+    ts_hardness_train = [entry["ts_hardness"] for entry in train_data[:100]]
 
     dataset_train = Dataset.from_dict({
         "db_id": db_id_train,
@@ -135,9 +135,9 @@ def main():
         "yc_hardness": yc_hardness_train,
         "ts_hardness": ts_hardness_train
     })
-    db_id_eval = [entry["db_id"] for entry in eval_data]
-    query_eval = [entry["query"] for entry in eval_data]
-    question_eval = [entry["question"] for entry in eval_data]
+    db_id_eval = [entry["db_id"] for entry in eval_data[:10]]
+    query_eval = [entry["query"] for entry in eval_data[:10]]
+    question_eval = [entry["question"] for entry in eval_data[:10]]
 
     dataset_eval = Dataset.from_dict({
         "db_id": db_id_eval,
@@ -154,6 +154,7 @@ def main():
     eval_dataset = dataset_eval.map(lambda e: preprocess_function(e, tokenizer, db_id_to_content), batched=True)
 
 
+
     training_args = Seq2SeqTrainingArguments(
         output_dir="checkpoints/T5-3B/slefdata_batch2_zero3_epoch50_lr1e4_seq2seq_2",
         deepspeed="./deepspeed_config.json",
@@ -164,7 +165,7 @@ def main():
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=2500,
+        eval_steps=1,
         save_steps=5000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
@@ -179,28 +180,38 @@ def main():
         preds=eval_pred.predictions
         labels=eval_pred.label_ids
         db_ids=eval_pred.inputs
+
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
         decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=True)
+        print('decode_label\n',decoded_labels)  ### changed
+        print('decoded_inputs\n',decoded_inputs)  ### changed
+        print('decoded_preds\n',decoded_preds)  ### changed
         db_id = []
         for question in decoded_inputs:
-            result = re.search(r'\|(.+?)\|', question)
-            db_id.append(result.group(1).strip())
+            '''
+            'How many singers do we have? ||| concert_singer || stadium | Stadium_ID, Location, Name, Capacity, Highest, Lowest, Average || singer | Singer_ID, Name, Country, Song_Name, Song_release_year, Age, Is_male || concert | concert_ID, concert_Name, Theme, Stadium_ID, Year || singer_in_concert | concert_ID, Singer_ID', 'What is the total number of singers? ||| concert_singer || stadium | Stadium_ID, Location, Name, Capacity, Highest, Lowest, Average || singer | Singer_ID, Name, Country, Song_Name, Song_release_year, Age, Is_male || concert | concert_ID, concert_Name, Theme, Stadium_ID, Year || singer_in_concert | concert_ID, Singer_ID',
+            '''
+            # the db_id is after '|||' and each sample will only have one
+            # result = re.findall(r'\|\|\|(.+?)\|', question) # [' xxx']
+            result = re.findall(r'\|\|\|\s*(.*?)\s*\|', question)
+            db_id.append(result[0])
         genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
-        gold_queries_and_db_ids = []
+        # gold_queries_and_db_ids = []
+        # for query,db in zip(decoded_labels,db_id):
+        #     # Split the line by the tab character '\t'
+        #     gold_queries_and_db_ids.append(query + "\t" + db)
+        # print('gold_queries_and_db_ids\n',gold_queries_and_db_ids)  ### changed
         with open("./test_suite/temp/pred.txt", 'w') as file:
             for query in genetrated_queries:
                 file.write(query + "\n")
 
-        with open("./test_suite/gold.txt", 'r') as file:
-            for line in file:
+        with open("./test_suite/temp/gold.txt", 'w') as file:  # need to be changed, use the query from decoed_labels and db_id from decoded_inputs
+            for query, db in zip(decoded_labels, db_id):
                 # Split the line by the tab character '\t'
-                query, db_id = line.strip().split('\t')
+                file.write(query + "\t" + db + "\n")
 
-                # Append the query and db_id as a tuple to the list
-                gold_queries_and_db_ids.append((query, db_id))
-
-        gold = './test_suite/gold.txt'
+        gold = './test_suite/temp/gold.txt'
         pred = './test_suite/temp/pred.txt'
         db_dir = './database'
         etype = 'all'

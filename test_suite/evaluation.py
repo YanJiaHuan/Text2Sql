@@ -604,6 +604,7 @@ class Evaluator:
     def evaluate_one(self, db_name, gold, predicted, turn_scores, idx):
         if db_name not in self.db_paths:
             db_path = os.path.join(self.db_dir, db_name, db_name + ".sqlite")
+            print('db_path', db_path) # changed
             self.db_paths[db_name] = db_path
             self.schemas[db_name] = Schema(get_schema(db_path))
 
@@ -874,7 +875,7 @@ def evaluate(
         # which might lead to slight differences in scores
         if len(gseq_one) != 0:
             glist.append(gseq_one)
-
+    print('glist', glist) #changed
     # spider formatting indicates that there is only one "single turn"
     # do not report "turn accuracy" for SPIDER
     include_turn_acc = len(glist) > 1
@@ -909,6 +910,8 @@ def evaluate(
             print(idx)
             print(g)
             g_str, db_name = g
+            print('g_str', g_str) # changed
+            print('db_name', db_name) # changed
             results.append(evaluator.evaluate_one(db_name, g_str, p_str, turn_scores, idx))
 
         if all(v == 1 for v in turn_scores["exec"]):
