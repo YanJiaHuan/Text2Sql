@@ -120,12 +120,12 @@ def main():
     with open('./spider_local/dev.json', 'r') as f:
         eval_data = json.load(f)
 
-    db_id_train = [entry["db_id"] for entry in train_data[:100]]
-    query_train = [entry["sql"] for entry in train_data[:100]]
-    question_train = [entry["text"] for entry in train_data[:100]]
-    tables_train = [entry["tables"] for entry in train_data[:100]]
-    yc_hardness_train = [entry["yc_hardness"] for entry in train_data[:100]]
-    ts_hardness_train = [entry["ts_hardness"] for entry in train_data[:100]]
+    db_id_train = [entry["db_id"] for entry in train_data]
+    query_train = [entry["sql"] for entry in train_data]
+    question_train = [entry["text"] for entry in train_data]
+    tables_train = [entry["tables"] for entry in train_data]
+    yc_hardness_train = [entry["yc_hardness"] for entry in train_data]
+    ts_hardness_train = [entry["ts_hardness"] for entry in train_data]
 
     dataset_train = Dataset.from_dict({
         "db_id": db_id_train,
@@ -135,9 +135,9 @@ def main():
         "yc_hardness": yc_hardness_train,
         "ts_hardness": ts_hardness_train
     })
-    db_id_eval = [entry["db_id"] for entry in eval_data[:10]]
-    query_eval = [entry["query"] for entry in eval_data[:10]]
-    question_eval = [entry["question"] for entry in eval_data[:10]]
+    db_id_eval = [entry["db_id"] for entry in eval_data]
+    query_eval = [entry["query"] for entry in eval_data]
+    question_eval = [entry["question"] for entry in eval_data]
 
     dataset_eval = Dataset.from_dict({
         "db_id": db_id_eval,
@@ -165,7 +165,7 @@ def main():
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=1,
+        eval_steps=2500,
         save_steps=5000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
