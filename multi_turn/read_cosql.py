@@ -208,6 +208,7 @@ if __name__ == '__main__':
 ###########################################################################################
     spider_schema,spider_primary,spider_foreign = creatiing_schema(DATASET_SCHEMA)
     val_df = load_data(DATASET)
+    Log_content = []
     for index,sample in val_df.iterrows():
         print('index:',index)
         db_id = sample['database_id'] # e.g.'car_1'
@@ -233,36 +234,61 @@ if __name__ == '__main__':
         # input: question + message + generated_sql
         # output: sql
         message = ''
+        old_message = ''
         history = {}
+        tmp = {}
+        SQLs_temp_pred = []
+        SQLs_temp_gold = []
+        tmp['question'] = question_final
         for round, dialog in enumerate(sample['interaction']): # assueme the goal it to output the final sql by using final question and dialog information
             print(f'The {round} round of dialog in sample {index}:') # each sample has at least 1 previous conversation
             question_round = dialog['utterance']
             query_round = dialog['query']
             if round == 0:
-                message = message + \
+                old_message = message + \
                           SQL_generation_prompt + \
-                          "\nQuestion:" + question_round + \
                           "\ndatabase:" + db_id + \
                           "\ndatabase chema:" + schema + \
                           "\nSome samples to text2sql:" + zero_shots_SQL_generation_prompt
-                print('message:',message)
-                SQL, limit_marker = GPT4_generation(message)
-                print('\nGPT generated SQL:',SQL)
-                history['question'] = question_round
-                history['query'] = SQL
-            else:
                 message = message + \
+                          SQL_generation_prompt + \
+                          "\ndatabase:" + db_id + \
+                          "\ndatabase chema:" + schema + \
+                          "\nSome samples to text2sql:" + zero_shots_SQL_generation_prompt+ \
+                          "\nQuestion:" + question_round + \
+                          "\nOutput:"
+            else:
+                message = old_message + \
                           Contextual_prompt + \
                           "\nThis is previous question:" + history['question'] + \
                           "\nThis is your previous generated SQl:" + history['query']+ \
-                          "\nQuestion:"+ question_round
+                          "\nQuestion:" + question_round + \
+                          "\nOutput:"
+                old_message = old_message + \
+                            "\nThis is previous question:" + history['question'] + \
+                            "\nThis is your previous generated SQl:" + history['query']
             print('message:',message)
             SQL, limit_marker = GPT4_generation(message)
-            print('\nGPT generated SQL:',SQL)
+            print('\nGPT generated SQL:',SQL+'\n')
             history['question'] = question_round
             history['query'] = SQL
-
-
-
+            '''
+            save the log and generated sql, gold sql in some file: may need to use some process as the response is like: 
+            SELECT car_names.Model, COUNT(cars_data.Id) AS popularity
+            FROM car_names
+            JOIN cars_data ON cars_data.Id = car_names.MakeId
+            GROUP BY car_names.Model
+            ORDER BY popularity DESC;
+            There are '\n' in line, and I don't want it
+            '''
+            SQLs_temp_pred.append(SQL)
+            SQLs_temp_gold.append(query_round+'\t'+db_id)
+        # this loop will focus on the final round, which is the 'final' in dataset
+        with open ('./predicted_sql.txt','a') as f:
+            for line in SQLs_temp_pred:
+                f.write(line+'\n')
+        with open ('./gold_sql.txt','a') as f:
+            for line in SQLs_temp_gold:
+                f.write(line+'\n')
 
 # CUDA_VISIBLE_DEVICES=7 python read_cosql.py

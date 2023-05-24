@@ -236,7 +236,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-## deepspeed --include localhost:0,1,2,3 final_runonself.py > log | use this code to choose GPUs to run
+## deepspeed --include localhost:0,1 final_runonself.py > log | use this code to choose GPUs to run
 ## Try to remove /.cache/pytorch_extensions if stuck somewhere
 ## add activation_checkpointing in ds_config if oom(batch = 16,without: 20GB/GPU, with: 26GB/GPU
 ## need to run the script provided by deepspeed to convert the model to normal torch model
