@@ -184,9 +184,9 @@ def main():
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
         decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=True)
-        print('decode_label\n',decoded_labels)  ### changed
-        print('decoded_inputs\n',decoded_inputs)  ### changed
-        print('decoded_preds\n',decoded_preds)  ### changed
+        # print('decode_label\n',decoded_labels)  ### changed
+        # print('decoded_inputs\n',decoded_inputs)  ### changed
+        # print('decoded_preds\n',decoded_preds)  ### changed
         db_id = []
         for question in decoded_inputs:
             '''

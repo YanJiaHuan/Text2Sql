@@ -875,7 +875,7 @@ def evaluate(
         # which might lead to slight differences in scores
         if len(gseq_one) != 0:
             glist.append(gseq_one)
-    print('glist', glist) #changed
+    # print('glist', glist) #changed
     # spider formatting indicates that there is only one "single turn"
     # do not report "turn accuracy" for SPIDER
     include_turn_acc = len(glist) > 1

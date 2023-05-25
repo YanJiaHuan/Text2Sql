@@ -12,7 +12,6 @@ please help me generate the corresponding SQL query with no further explaination
 '''
 three_shots_SQL_generation_prompt = '''
 Here is some examples of EASY, MEDIUM and HARD SQL queries.
-
 SELECT count(*) FROM singer 
 SELECT avg(weight) ,  pettype FROM pets GROUP BY pettype
 SELECT T1.fname ,  T1.age FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'dog' AND T1.stuid NOT IN (SELECT T1.stuid FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'cat')
@@ -21,6 +20,37 @@ SELECT T1.fname ,  T1.age FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  
 zero_shots_SQL_generation_prompt = '''
 Sorry, I won't give you any examples. Please generate based on your own semantic parsing ability.
 '''
+
+one_shot_Cosql_prompt_without_explain = '''
+Here is a sample of multi-turn text2sql for you to understand the task.
+Table advisor, columns = [*,s_ID,i_ID]
+Table classroom, columns = [*,building,room_number,capacity]
+Table course, columns = [*,course_id,title,dept_name,credits]
+Table department, columns = [*,dept_name,building,budget]
+Table instructor, columns = [*,ID,name,dept_name,salary]
+Table prereq, columns = [*,course_id,prereq_id]
+Table section, columns = [*,course_id,sec_id,semester,year,building,room_number,time_slot_id]
+Table student, columns = [*,ID,name,dept_name,tot_cred]
+Table takes, columns = [*,ID,course_id,sec_id,semester,year,grade]
+Table teaches, columns = [*,ID,course_id,sec_id,semester,year]
+Table time_slot, columns = [*,time_slot_id,day,start_hr,start_min,end_hr,end_min]
+
+foreign key:[course.dept_name = department.dept_name,instructor.dept_name = department.dept_name,section.building = classroom.building,section.room_number = classroom.room_number,section.course_id = course.course_id,teaches.ID = instructor.ID,teaches.course_id = section.course_id,teaches.sec_id = section.sec_id,teaches.semester = section.semester,teaches.year = section.year,student.dept_name = department.dept_name,takes.ID = student.ID,takes.course_id = section.course_id,takes.sec_id = section.sec_id,takes.semester = section.semester,takes.year = section.year,advisor.s_ID = student.ID,advisor.i_ID = instructor.ID,prereq.prereq_id = course.course_id,prereq.course_id = course.course_id]
+primary key:[classroom.building,department.dept_name,course.course_id,instructor.ID,section.course_id,teaches.ID,student.ID,takes.ID,advisor.s_ID,time_slot.time_slot_id,prereq.course_id]
+
+Iteration 1:
+Question: Find out the average salary of professors?
+SELECT avg ( salary )  FROM instructor
+
+Iteration 2: # iteration 2 will see the question and sql in iteration 1
+Question: Find the average salary of the professors of each department?
+SELECT avg ( salary ) , dept_name FROM instructor GROUP BY dept_name
+
+Iteration 3: # iteration 3 will see the questiones and sqls in iteration 2 and 1
+Question: Which department has the highest average salary of professors?
+SELECT dept_name FROM instructor GROUP BY dept_name ORDER BY avg ( salary )  DESC LIMIT 1
+'''
+
 
 checker_prompt = '''
 Please help me generate the corresponding SQL query with no further explaination.
@@ -33,8 +63,8 @@ Now I will give you some context (question and your own answer). Please generate
 #################### 1. Set up  ####################
 #----------------------------------------------------------------------------------------------------------
 
-API_KEY = "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" # 自己的
-# API_KEY = "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"  # 买的
+# API_KEY = "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" # 自己的
+API_KEY = "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"  # 买的
 # API_KEY = "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" # gpt4 孙哥
 os.environ["OPENAI_API_KEY"] = API_KEY
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -177,8 +207,10 @@ def GPT4_generation(prompt):
         frequency_penalty=0.0,
         presence_penalty=0.0,
         )
+        time.sleep(20)
         return response['choices'][0]['message']['content'], limit_marker
     except openai.error.RateLimitError as e:
+        time.sleep(20)
         print(f"RateLimitError: {e}")
         limit_marker = True
         fake_SQL = "SELECT COUNT(*) FROM singer"
@@ -206,6 +238,7 @@ def load_breaker():
 
 if __name__ == '__main__':
 ###########################################################################################
+    # load the data
     spider_schema,spider_primary,spider_foreign = creatiing_schema(DATASET_SCHEMA)
     val_df = load_data(DATASET)
     Log_content = []
@@ -249,12 +282,12 @@ if __name__ == '__main__':
                           SQL_generation_prompt + \
                           "\ndatabase:" + db_id + \
                           "\ndatabase chema:" + schema + \
-                          "\nSome samples to text2sql:" + zero_shots_SQL_generation_prompt
+                          "\nSome samples to text2sql:" + one_shot_Cosql_prompt_without_explain
                 message = message + \
                           SQL_generation_prompt + \
                           "\ndatabase:" + db_id + \
                           "\ndatabase chema:" + schema + \
-                          "\nSome samples to text2sql:" + zero_shots_SQL_generation_prompt+ \
+                          "\nSome samples to text2sql:" + one_shot_Cosql_prompt_without_explain+ \
                           "\nQuestion:" + question_round + \
                           "\nOutput:"
             else:
