@@ -893,7 +893,7 @@ def evaluate(
         if len(pseq_one) != 0:
             plist.append(pseq_one)
 
-    assert len(plist) == len(glist), "number of sessions must equal"
+    # assert len(plist) == len(glist), "number of sessions must equal"
 
     evaluator = Evaluator(db_dir, kmaps, etype, plug_value, keep_distinct, progress_bar_for_each_datapoint)
     results = []

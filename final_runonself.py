@@ -22,6 +22,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+eval_loop_num = 0
+
 def load_data():
     # path
     data_path = "./dataset_final_after/data"
@@ -165,8 +167,8 @@ def main():
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=10,
-        save_steps=5000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
+        eval_steps=1500,
+        save_steps=3000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
         predict_with_generate=True,
@@ -177,50 +179,46 @@ def main():
     )
     import re
     def compute_metric(eval_pred):
-        preds=eval_pred.predictions
-        labels=eval_pred.label_ids
-        db_ids=eval_pred.inputs
+        global eval_loop_num
+        eval_loop_num += 1
+        preds = eval_pred.predictions
+        labels = eval_pred.label_ids
+        db_ids = eval_pred.inputs
 
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
         decoded_inputs = tokenizer.batch_decode(db_ids, skip_special_tokens=True)
-        # print('decode_label\n',decoded_labels)  ### changed
-        # print('decoded_inputs\n',decoded_inputs)  ### changed
-        # print('decoded_preds\n',decoded_preds)  ### changed
+
         db_id = []
         for question in decoded_inputs:
-            '''
-            'How many singers do we have? ||| concert_singer || stadium | Stadium_ID, Location, Name, Capacity, Highest, Lowest, Average || singer | Singer_ID, Name, Country, Song_Name, Song_release_year, Age, Is_male || concert | concert_ID, concert_Name, Theme, Stadium_ID, Year || singer_in_concert | concert_ID, Singer_ID', 'What is the total number of singers? ||| concert_singer || stadium | Stadium_ID, Location, Name, Capacity, Highest, Lowest, Average || singer | Singer_ID, Name, Country, Song_Name, Song_release_year, Age, Is_male || concert | concert_ID, concert_Name, Theme, Stadium_ID, Year || singer_in_concert | concert_ID, Singer_ID',
-            '''
-            # the db_id is after '|||' and each sample will only have one
-            # result = re.findall(r'\|\|\|(.+?)\|', question) # [' xxx']
             result = re.findall(r'\|\|\|\s*(.*?)\s*\|', question)
             db_id.append(result[0])
-        genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]###########
-        # gold_queries_and_db_ids = []
-        # for query,db in zip(decoded_labels,db_id):
-        #     # Split the line by the tab character '\t'
-        #     gold_queries_and_db_ids.append(query + "\t" + db)
-        # print('gold_queries_and_db_ids\n',gold_queries_and_db_ids)  ### changed
-        with open("./test_suite/temp/pred.txt", 'w') as file:
+
+        genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
+
+        # Create a unique directory for the current step
+        dir_path = f"./test_suite/temp/eval_loop_{eval_loop_num}"
+        os.makedirs(dir_path, exist_ok=True)
+
+        with open(f"{dir_path}/pred.txt", 'w') as file:
             for query in genetrated_queries:
                 file.write(query + "\n")
 
-        with open("./test_suite/temp/gold.txt", 'w') as file:  # need to be changed, use the query from decoed_labels and db_id from decoded_inputs
+        with open(f"{dir_path}/gold.txt", 'w') as file:
             for query, db in zip(decoded_labels, db_id):
-                # Split the line by the tab character '\t'
                 file.write(query + "\t" + db + "\n")
 
-        gold = './test_suite/temp/gold.txt'
-        pred = './test_suite/temp/pred.txt'
+        gold = f"{dir_path}/gold.txt"
+        pred = f"{dir_path}/pred.txt"
         db_dir = './database'
         etype = 'all'
         table = './tables.json'
-        # print("now you see")
 
-        score = evaluate(gold, pred, db_dir, etype, table, plug_value=False, keep_distinct=False, progress_bar_for_each_datapoint=False)
+        score = evaluate(gold, pred, db_dir, etype, table, plug_value=False, keep_distinct=False,
+                         progress_bar_for_each_datapoint=False)
         print(f"Execution Accuracy: {score}")
-        return {"exec":score}  # 必须返回字典
+
+        return {"exec": score}
 
     trainer = Seq2SeqTrainer(
         model=model,

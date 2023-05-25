@@ -364,7 +364,7 @@ def parse_condition(toks, start_idx, tables_with_alias, schema, default_tables=N
         if idx >= len_ or toks[idx] not in WHERE_OPS:
             print(f"Warning: Unexpected token at index {idx}: {toks[idx]}")
             # Use a default operator or skip this condition
-            op_id = WHERE_OPS.index('your_default_operator')  # use your default operator here
+            op_id = WHERE_OPS.index('=')  # use your default operator here
         else:
             op_id = WHERE_OPS.index(toks[idx])
             idx += 1

@@ -49,6 +49,10 @@ SELECT avg ( salary ) , dept_name FROM instructor GROUP BY dept_name
 Iteration 3: # iteration 3 will see the questiones and sqls in iteration 2 and 1
 Question: Which department has the highest average salary of professors?
 SELECT dept_name FROM instructor GROUP BY dept_name ORDER BY avg ( salary )  DESC LIMIT 1
+
+Quesion: show the train name and station name for each train.
+
+
 '''
 
 
@@ -193,28 +197,36 @@ def SQL_checker(sql, database):
         checker = True
     return prompt, checker
 
+import time
+
 def GPT4_generation(prompt):
     limit_marker = False
-    try:
-        response = openai.ChatCompletion.create(
-        model=model_name,
-        messages=[{"role": "user", "content": prompt}],
-        n = 1,
-        stream = False,
-        temperature=0.0,
-        max_tokens=600,
-        top_p = 1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        )
-        time.sleep(20)
-        return response['choices'][0]['message']['content'], limit_marker
-    except openai.error.RateLimitError as e:
-        time.sleep(20)
-        print(f"RateLimitError: {e}")
-        limit_marker = True
-        fake_SQL = "SELECT COUNT(*) FROM singer"
-        return fake_SQL,limit_marker
+    fake_SQL = "SELECT COUNT(*) FROM singer"
+
+    while True:
+        try:
+            response = openai.ChatCompletion.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                n = 1,
+                stream = False,
+                temperature=0.0,
+                max_tokens=600,
+                top_p = 1.0,
+                frequency_penalty=0.0,
+                presence_penalty=0.0,
+            )
+            return response['choices'][0]['message']['content'], limit_marker
+
+        except openai.error.RateLimitError as e:
+            print(f"RateLimitError: {e}")
+            print("Sleeping for 20 seconds...")
+            time.sleep(20)
+            print("Retrying...")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return fake_SQL, limit_marker
+
 
 
 def save_breaker(breaker):
