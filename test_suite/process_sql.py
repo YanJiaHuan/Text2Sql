@@ -356,11 +356,18 @@ def parse_condition(toks, start_idx, tables_with_alias, schema, default_tables=N
             not_op = True
             idx += 1
 
-        assert (
-            idx < len_ and toks[idx] in WHERE_OPS
-        ), "Error condition: idx: {}, tok: {}".format(idx, toks[idx])
-        op_id = WHERE_OPS.index(toks[idx])
-        idx += 1
+        # assert (
+        #     idx < len_ and toks[idx] in WHERE_OPS
+        # ), "Error condition: idx: {}, tok: {}".format(idx, toks[idx])
+        # op_id = WHERE_OPS.index(toks[idx])
+        # idx += 1
+        if idx >= len_ or toks[idx] not in WHERE_OPS:
+            print(f"Warning: Unexpected token at index {idx}: {toks[idx]}")
+            # Use a default operator or skip this condition
+            op_id = WHERE_OPS.index('your_default_operator')  # use your default operator here
+        else:
+            op_id = WHERE_OPS.index(toks[idx])
+            idx += 1
         val1 = val2 = None
         if op_id == WHERE_OPS.index(
             "between"

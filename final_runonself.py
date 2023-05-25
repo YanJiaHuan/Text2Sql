@@ -105,9 +105,9 @@ def preprocess_function_for_self_data(batch, tokenizer, schemas):
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model_name = 't5-3b'
-    tokenizer_name = 't5-3b'
+    # tokenizer_name = 't5-3b'
     # model_name = "./checkpoints/T5-3B/batch2_zero3_epoch50_lr1e4_seq2seq/checkpoint-8000"
-    # tokenizer_name = "tscholak/cxmefzzi"
+    tokenizer_name = "tscholak/cxmefzzi"
     # config = T5Config.from_pretrained(model_name, ignore_pad_token_for_loss=True)
     config = T5Config.from_pretrained(model_name)
     config.max_length = 512
@@ -165,7 +165,7 @@ def main():
         gradient_accumulation_steps=1, # dafault is 1
         max_grad_norm=1.0,
         evaluation_strategy="steps",  # Change evaluation_strategy to "steps"
-        eval_steps=2500,
+        eval_steps=10,
         save_steps=5000,# Add eval_steps parameter need to lower the log/eval/save steps to see the report results
         save_strategy="steps",
         disable_tqdm=False,
@@ -236,7 +236,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-## deepspeed --include localhost:0,1 final_runonself.py > log | use this code to choose GPUs to run
+## deepspeed --include localhost:1,2 final_runonself.py > log | use this code to choose GPUs to run
 ## Try to remove /.cache/pytorch_extensions if stuck somewhere
 ## add activation_checkpointing in ds_config if oom(batch = 16,without: 20GB/GPU, with: 26GB/GPU
 ## need to run the script provided by deepspeed to convert the model to normal torch model

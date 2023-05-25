@@ -604,7 +604,7 @@ class Evaluator:
     def evaluate_one(self, db_name, gold, predicted, turn_scores, idx):
         if db_name not in self.db_paths:
             db_path = os.path.join(self.db_dir, db_name, db_name + ".sqlite")
-            print('db_path', db_path) # changed
+            # print('db_path', db_path) # changed
             self.db_paths[db_name] = db_path
             self.schemas[db_name] = Schema(get_schema(db_path))
 
@@ -907,11 +907,11 @@ def evaluate(
             p, g = pg
             p_str = p[0]
             p_str = p_str.replace("value", "1")
-            print(idx)
-            print(g)
+            # print(idx)
+            # print(g)
             g_str, db_name = g
-            print('g_str', g_str) # changed
-            print('db_name', db_name) # changed
+            # print('g_str', g_str) # changed
+            # print('db_name', db_name) # changed
             results.append(evaluator.evaluate_one(db_name, g_str, p_str, turn_scores, idx))
 
         if all(v == 1 for v in turn_scores["exec"]):

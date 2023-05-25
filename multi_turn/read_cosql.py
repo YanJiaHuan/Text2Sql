@@ -269,6 +269,7 @@ if __name__ == '__main__':
                             "\nThis is your previous generated SQl:" + history['query']
             print('message:',message)
             SQL, limit_marker = GPT4_generation(message)
+            SQL = SQL.replace('\n',' ')
             print('\nGPT generated SQL:',SQL+'\n')
             history['question'] = question_round
             history['query'] = SQL
