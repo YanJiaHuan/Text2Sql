@@ -29,9 +29,12 @@ tokenized_eval_dataset = data['test'].map(format_dataset, batched=True)
 training_args = TrainingArguments(
     "test-clm",
     evaluation_strategy = "epoch",
-    learning_rate=2e-5,
+    learning_rate=1e-4,
     weight_decay=0.01,
     save_strategy='epoch'
+    num_train_epochs=5,  # specify the number of epochs you want here
+    per_device_train_batch_size=16,  # specify the batch size you want here
+    per_device_eval_batch_size=16,  # specify the evaluation batch size if you want it to be different from the training batch size
 )
 
 # Train the model
