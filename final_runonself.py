@@ -22,7 +22,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-eval_loop_num = 0
 
 def load_data():
     # path
@@ -179,8 +178,6 @@ def main():
     )
     import re
     def compute_metric(eval_pred):
-        global eval_loop_num
-        eval_loop_num += 1
         preds = eval_pred.predictions
         labels = eval_pred.label_ids
         db_ids = eval_pred.inputs
@@ -197,18 +194,19 @@ def main():
         genetrated_queries = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
 
         # Create a unique directory for the current step
-        dir_path = f"./test_suite/temp/eval_loop_{eval_loop_num}"
+        dir_path = f"./test_suite/temp"
         os.makedirs(dir_path, exist_ok=True)
 
         with open(f"{dir_path}/pred.txt", 'w') as file:
             for query in genetrated_queries:
                 file.write(query + "\n")
 
-        with open(f"{dir_path}/gold.txt", 'w') as file:
-            for query, db in zip(decoded_labels, db_id):
-                file.write(query + "\t" + db + "\n")
+        # with open(f"{dir_path}/gold.txt", 'w') as file:
+        #     for query, db in zip(decoded_labels, db_id):
+        #         file.write(query + "\t" + db + "\n")
 
-        gold = f"{dir_path}/gold.txt"
+        # gold = f"{dir_path}/gold.txt"
+        gold = './Evaluation_file/gold_example.txt'
         pred = f"{dir_path}/pred.txt"
         db_dir = './database'
         etype = 'all'
@@ -234,7 +232,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-## deepspeed --include localhost:1,2 final_runonself.py > log | use this code to choose GPUs to run
+## deepspeed --include localhost:1,3 final_runonself.py > log | use this code to choose GPUs to run
 ## Try to remove /.cache/pytorch_extensions if stuck somewhere
 ## add activation_checkpointing in ds_config if oom(batch = 16,without: 20GB/GPU, with: 26GB/GPU
 ## need to run the script provided by deepspeed to convert the model to normal torch model

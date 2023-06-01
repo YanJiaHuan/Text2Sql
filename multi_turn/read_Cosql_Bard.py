@@ -7,7 +7,6 @@ import tiktoken
 import sqlite3
 from Bard import Chatbot
 
-
 #################### 0. Prompt   ####################
 SQL_generation_prompt = '''
 You are an expert in SQL. I will give you a natural language question and a database schema, 
@@ -230,13 +229,14 @@ def GPT4_generation(prompt):
             print(f"Unexpected error: {e}")
             return fake_SQL, limit_marker
 
+# initial the chatbot
 token = "Wgj-oa5yHxfmjo0lLybtWGLiWYoKTZ07NXcUiaPiUHmtQQiAKlfzNTOA9lwqmCz2N0qGFg."
 chatbot = Chatbot(token)
 def Bard_generation(prompt):
     a = chatbot.ask(prompt)
     answer = a['content']
-    print(answer)
     return answer
+
 
 def save_breaker(breaker):
     with open("breaker.txt", "w") as f:
@@ -322,7 +322,7 @@ if __name__ == '__main__':
                             "\nThis is previous question:" + history['question'] + \
                             "\nThis is your previous generated SQl:" + history['query']
             print('message:',message)
-            SQL= Bard_generation(message)
+            SQL, limit_marker = Bard_generation(message)
             SQL = SQL.replace('\n',' ')
             print('\nGPT generated SQL:',SQL+'\n')
             history['question'] = question_round
