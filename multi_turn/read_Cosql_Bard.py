@@ -231,21 +231,33 @@ def GPT4_generation(prompt):
             print(f"Unexpected error: {e}")
             return fake_SQL, limit_marker
 
+
 # initial the chatbot
 token = "Wgj-oa5yHxfmjo0lLybtWGLiWYoKTZ07NXcUiaPiUHmtQQiAKlfzNTOA9lwqmCz2N0qGFg."
 chatbot = Chatbot(token)
+import time
+import re
+
+def extract_sql(response):
+    matches = re.findall(r'```sql\n(.*?)\n```', response, re.DOTALL)
+    return matches
+
 def Bard_generation(prompt):
     limit_marker = False
-    SQL = chatbot.ask(prompt)
+    answer = chatbot.ask(prompt)
+    SQL = answer[2][0][0]  # This is a list based on your latest context
 
     while True:  # This loop will continue until a string is returned
         if isinstance(SQL, dict):
             limit_marker = True
             time.sleep(60)  # freeze for 1 min
-            SQL = chatbot.ask(prompt)  # resend the request
-        else:
-            return SQL, limit_marker
-
+            answer = chatbot.ask(prompt)  # resend the request
+            SQL = answer[2][0][0]
+        elif isinstance(SQL, list) and SQL:  # if SQL is a non-empty list
+            sql_string = SQL[0]  # get the first element of the list
+            sql_query = extract_sql(sql_string)  # extract sql query
+            if sql_query:  # if successfully extracted
+                return sql_query[0], limit_marker
 
 def save_breaker(breaker):
     with open("breaker.txt", "w") as f:
@@ -319,14 +331,14 @@ if __name__ == '__main__':
                           "\ndatabase chema:" + schema + \
                           "\nSome samples to text2sql:" + one_shot_Cosql_prompt_without_explain+ \
                           "\nQuestion:" + question_round + \
-                          "\nOutput: \nSELECT"
+                          "\nOutput:"
             else:
                 message = old_message + \
                           Contextual_prompt + \
                           "\nThis is previous question:" + history['question'] + \
                           "\nThis is your previous generated SQl:" + history['query']+ \
                           "\nQuestion:" + question_round + \
-                          "\nOutput: \nSELECT"
+                          "\nOutput:"
                 old_message = old_message + \
                             "\nThis is previous question:" + history['question'] + \
                             "\nThis is your previous generated SQl:" + history['query']
