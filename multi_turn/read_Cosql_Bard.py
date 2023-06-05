@@ -2,6 +2,7 @@ import pandas as pd
 import time
 import openai
 import os
+from os import environ
 import sys
 import tiktoken
 import sqlite3
@@ -12,6 +13,10 @@ SQL_generation_prompt = '''
 You are an expert in SQL. I will give you a natural language question and a database schema, 
 please help me generate the corresponding SQL query with no further explaination.
 '''
+SQL_generation_prompt_Bard = '''
+Help me convert natural language questions to SQL, don't explain the functionality of the SQL query.
+'''
+
 three_shots_SQL_generation_prompt = '''
 Here is some examples of EASY, MEDIUM and HARD SQL queries.
 SELECT count(*) FROM singer 
@@ -233,9 +238,9 @@ def GPT4_generation(prompt):
 token = "Wgj-oa5yHxfmjo0lLybtWGLiWYoKTZ07NXcUiaPiUHmtQQiAKlfzNTOA9lwqmCz2N0qGFg."
 chatbot = Chatbot(token)
 def Bard_generation(prompt):
-    a = chatbot.ask(prompt)
-    answer = a['content']
-    return answer
+    answer = chatbot.ask(prompt)
+    limit_marker = False
+    return answer, limit_marker
 
 
 def save_breaker(breaker):
@@ -300,24 +305,24 @@ if __name__ == '__main__':
             query_round = dialog['query']
             if round == 0:
                 old_message = message + \
-                          SQL_generation_prompt + \
+                          SQL_generation_prompt_Bard + \
                           "\ndatabase:" + db_id + \
                           "\ndatabase chema:" + schema + \
                           "\nSome samples to text2sql:" + one_shot_Cosql_prompt_without_explain
                 message = message + \
-                          SQL_generation_prompt + \
+                          SQL_generation_prompt_Bard + \
                           "\ndatabase:" + db_id + \
                           "\ndatabase chema:" + schema + \
                           "\nSome samples to text2sql:" + one_shot_Cosql_prompt_without_explain+ \
                           "\nQuestion:" + question_round + \
-                          "\nOutput:"
+                          "\nOutput: \nSELECT"
             else:
                 message = old_message + \
                           Contextual_prompt + \
                           "\nThis is previous question:" + history['question'] + \
                           "\nThis is your previous generated SQl:" + history['query']+ \
                           "\nQuestion:" + question_round + \
-                          "\nOutput:"
+                          "\nOutput: \nSELECT"
                 old_message = old_message + \
                             "\nThis is previous question:" + history['question'] + \
                             "\nThis is your previous generated SQl:" + history['query']
