@@ -57,9 +57,6 @@ Iteration 3: # iteration 3 will see the questiones and sqls in iteration 2 and 1
 Question: Which department has the highest average salary of professors?
 SELECT dept_name FROM instructor GROUP BY dept_name ORDER BY avg ( salary )  DESC LIMIT 1
 
-Quesion: show the train name and station name for each train.
-
-
 '''
 
 
@@ -238,9 +235,16 @@ def GPT4_generation(prompt):
 token = "Wgj-oa5yHxfmjo0lLybtWGLiWYoKTZ07NXcUiaPiUHmtQQiAKlfzNTOA9lwqmCz2N0qGFg."
 chatbot = Chatbot(token)
 def Bard_generation(prompt):
-    answer = chatbot.ask(prompt)
     limit_marker = False
-    return answer, limit_marker
+    SQL = chatbot.ask(prompt)
+
+    while True:  # This loop will continue until a string is returned
+        if isinstance(SQL, dict):
+            limit_marker = True
+            time.sleep(60)  # freeze for 1 min
+            SQL = chatbot.ask(prompt)  # resend the request
+        else:
+            return SQL, limit_marker
 
 
 def save_breaker(breaker):
@@ -328,6 +332,7 @@ if __name__ == '__main__':
                             "\nThis is your previous generated SQl:" + history['query']
             print('message:',message)
             SQL, limit_marker = Bard_generation(message)
+            print('SQL:',SQL)
             SQL = SQL.replace('\n',' ')
             print('\nGPT generated SQL:',SQL+'\n')
             history['question'] = question_round
