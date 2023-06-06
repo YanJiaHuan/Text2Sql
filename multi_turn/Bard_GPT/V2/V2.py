@@ -28,7 +28,8 @@ please help me generate the corresponding SQL query with no further explaination
 '''
 few_shot_generation_prompt_Bard = '''
 You are an expert in SQL. I will give you a database schema in Spider dataset, and you need to generate three
-SQL queries with natural language questions based on the schema.
+SQL queries with natural language questions based on the schema and explian the chain of thoughts logic. Also, I will give you some exapmles
+of how this task is done.
 '''
 
 three_shots_SQL_generation_prompt = '''
@@ -65,15 +66,17 @@ primary key:[classroom.building,department.dept_name,course.course_id,instructor
 
 example 1:
 Question: Find out the average salary of professors?
-Let's think step by step: 'salary of professors' 
+Let's think step by step: 'salary of professors' -> 'salary of instructor' -> Go to Table instructor, find the column salary, and calculate the average value.
 SELECT avg ( salary )  FROM instructor
 
 example 2:
 Question: Find the average salary of the professors of each department?
+Let's think step by step: 'salary of professors of each department' -> 'salary of instructor of each department' -> Go to Table instructor, find the column salary, and calculate the average value. 'each department'->group by the department.
 SELECT avg ( salary ) , dept_name FROM instructor GROUP BY dept_name
 
 example 3:
 Question: Which department has the highest average salary of professors?
+Let's think step by step: 'highest average salary of professors' -> 'highest average salary of instructor' -> Go to Table instructor, find the column salary, and calculate the average value. 'highest' -> order by the average value. 'department' -> group by the department.
 SELECT dept_name FROM instructor GROUP BY dept_name ORDER BY avg ( salary )  DESC LIMIT 1
 '''
 
@@ -326,8 +329,10 @@ if __name__ == '__main__':
         ###############################################
         '''message to Bard, to get few-shots'''
         message_Bard = few_shot_generation_prompt_Bard + \
-                          "\ndatabase:" + db_id + \
-                            "\ndatabase chema:" + schema
+                       three_shot_Spider_prompt_without_explain + \
+                       "Now, It is your turn." + \
+                       "\ndatabase:" + db_id + \
+                       "\ndatabase chema:" + schema
         print('message to Bard:', message_Bard)
         response_Bard, _ = Bard_generation(message_Bard)
         print('response_Bard:', response_Bard)
