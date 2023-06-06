@@ -242,23 +242,23 @@ def extract_sql(response):
     matches = re.findall(r'```sql\n(.*?)\n```', response, re.DOTALL)
     return matches
 
+
 def Bard_generation(prompt):
     limit_marker = False
     answer = chatbot.ask(prompt)
-    SQL = answer[2][0][0]  # This is a list based on your latest context
 
     while True:  # This loop will continue until a string is returned
-        if isinstance(SQL, dict):
+        if isinstance(answer, dict):  # check if answer is a dictionary (error response)
             limit_marker = True
             time.sleep(60)  # freeze for 1 min
             answer = chatbot.ask(prompt)  # resend the request
-            SQL = answer[2][0][0]
-        elif isinstance(SQL, list) and SQL:  # if SQL is a non-empty list
-            sql_string = SQL[0]  # get the first element of the list
-            sql_query = extract_sql(sql_string)  # extract sql query
-            if sql_query:  # if successfully extracted
-                return sql_query[0], limit_marker
-
+        else:
+            SQL = answer[4][0][1]  # This is a list based on your latest context
+            if isinstance(SQL, list) and SQL:  # if SQL is a non-empty list
+                sql_string = SQL[0]  # get the first element of the list
+                sql_query = extract_sql(sql_string)  # extract sql query
+                if sql_query:  # if successfully extracted
+                    return sql_query[0], limit_marker
 def save_breaker(breaker):
     with open("breaker.txt", "w") as f:
         f.write(str(breaker))
