@@ -10,3 +10,10 @@ SELECT DISTINCT Country FROM singer WHERE Age > 20
 SELECT DISTINCT Country FROM singer WHERE Age > 20
 SELECT country, COUNT(*) AS num_singers FROM singer GROUP BY country;
 SELECT singer.Country, COUNT(singer.Singer_ID) AS Singer_Count FROM singer GROUP BY singer.Country;
+SELECT Song_Name FROM singer WHERE Age > (SELECT AVG(Age) FROM singer) ORDER BY Age DESC;
+SELECT Song_Name FROM singer WHERE Age > (SELECT AVG(Age) FROM singer) ```
+SELECT Location, Name FROM stadium WHERE Capacity BETWEEN 5000 AND 10000;
+SELECT location, name FROM stadium WHERE capacity BETWEEN 5000 AND 10000;
+SELECT MAX(capacity), AVG(capacity) FROM stadium;
+SELECT AVG(Capacity) AS AverageCapacity, MAX(Capacity) AS MaximumCapacity FROM stadium;
+SELECT stadium.Name, stadium.Capacity FROM stadium WHERE stadium.Average = (SELECT MAX(stadium.Average) FROM stadium);
