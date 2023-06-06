@@ -1,0 +1,12 @@
+SELECT COUNT(*) FROM singer;
+SELECT COUNT(*) FROM singer;
+SELECT name, country, age FROM singer ORDER BY age DESC;
+SELECT Name, Country, Age FROM singer ORDER BY Age DESC;
+SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France';
+SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France';
+SELECT singer.name, singer.song_release_year FROM singer WHERE singer.age = (SELECT MIN(age) FROM singer);
+SELECT Song_Name, Song_release_year FROM singer WHERE Age = (SELECT MIN(Age) FROM singer) ORDER BY Song_release_year;
+SELECT DISTINCT Country FROM singer WHERE Age > 20
+SELECT DISTINCT Country FROM singer WHERE Age > 20
+SELECT country, COUNT(*) AS num_singers FROM singer GROUP BY country;
+SELECT singer.Country, COUNT(singer.Singer_ID) AS Singer_Count FROM singer GROUP BY singer.Country;

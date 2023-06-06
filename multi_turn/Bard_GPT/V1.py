@@ -216,9 +216,15 @@ def SQL_checker(sql, database):
 import time
 
 def GPT4_generation(prompt):
+    '''
+    openai.error.RateLimitError: Rate limit reached for default-gpt-3.5-turbo
+    in organization org-GFmlumrCZBB2Y40fVv7f8qgp on requests per min. Limit: 3 / min.
+    Please try again in 20s. Contact us through our help center at help.openai.com if you continue to have issues.
+    Please add a payment method to your account to increase your rate limit.
+    Visit https://platform.openai.com/account/billing to add a payment method.
+    '''
     limit_marker = False
     fake_SQL = "SELECT COUNT(*) FROM singer"
-
     while True:
         try:
             response = openai.ChatCompletion.create(
@@ -272,11 +278,12 @@ def Bard_generation(prompt):
     while True:  # This loop will continue until a string is returned
         if isinstance(answer, dict):  # check if answer is a dictionary (error response)
             limit_marker = True
-            time.sleep(15)  # freeze for 15s
             print("Token limit reached, switching to a new token...")
             token_index += 1  # Move to the next token
             if token_index >= len(tokens):  # If we've used all tokens, start over
                 token_index = 0
+                print("exceeding total limit, Waiting 15 seconds...")
+                time.sleep(15)  # freeze for 15s
             chatbot = Chatbot(tokens[token_index])  # Create a new chatbot with the new token
             answer = chatbot.ask(prompt)  # resend the request
         else:
@@ -330,6 +337,7 @@ if __name__ == '__main__':
                       SQL_generation_prompt + \
                         "\ndatabase:" + db_id + \
                         "\ndatabase chema:" + schema + \
+                        "Just give me the plain SQL without any placeholders." + \
                         "\nquestion:" + question+ \
                         "\nYour SQL:"
         print('message to GPT3.5:', message_GPT)
@@ -340,11 +348,9 @@ if __name__ == '__main__':
         SQLs_temp_pred.append(SQL)
         SQLs_temp_gold.append(SQL_gold+'\t'+db_id)
 
-    with open ('./Eval/predicted_sql.txt','a') as f:
-        for line in SQLs_temp_pred:
-            f.write(line+'\n')
-    with open ('./Eval/gold_sql.txt','a') as f:
-        for line in SQLs_temp_gold:
-            f.write(line+'\n')
+        with open ('./Eval/predicted_sql.txt','a') as f:
+                f.write(SQL+'\n')
+        with open ('./Eval/gold_sql.txt','a') as f:
+                f.write(SQL_gold+'\t'+db_id+'\n')
 
 # CUDA_VISIBLE_DEVICES=7 python read_cosql.py
