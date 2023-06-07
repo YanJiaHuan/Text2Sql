@@ -88,7 +88,7 @@ Please help me generate the corresponding SQL query with no further explaination
 #----------------------------------------------------------------------------------------------------------
 
 # API_KEY = "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" # 自己的
-API_KEY = "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"  # 买的
+API_KEY = "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"  # 买的
 # API_KEY = "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" # gpt4 孙哥
 os.environ["OPENAI_API_KEY"] = API_KEY
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -103,7 +103,7 @@ if task == 'CoSQL':
     OUTPUT_FILE_2 = "./gold_sql.txt"
     DATABASE_PATH = path_to_CoSQL+"/database"
 else:
-    path_to_Spider = "/Users/yan/Desktop/text2sql/spider"
+    path_to_Spider = "../../Spider"
     DATASET_SCHEMA = path_to_Spider + "/tables.json"
     DATASET = path_to_Spider + "/dev.json"
     OUTPUT_FILE_1 = "./Spider/predicted_sql.txt"
@@ -359,4 +359,4 @@ if __name__ == '__main__':
         with open ('./gold_sql.txt', 'a') as f:
                 f.write(SQL_gold+'\t'+db_id+'\n')
 
-# CUDA_VISIBLE_DEVICES=7 python read_cosql.py
+# python v2.py
