@@ -1,3 +1,20 @@
 SELECT COUNT(*) FROM singer;
 SELECT COUNT(*) FROM singer;
 SELECT Name, Country, Age FROM singer ORDER BY Age DESC
+SELECT Name, Country, Age FROM singer ORDER BY Age DESC
+SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France'
+SELECT AVG(Age), MIN(Age), MAX(Age) FROM singer WHERE Country = 'France' AND Is_male = 0;
+SELECT singer.Name, singer.Song_Name, singer.Song_release_year FROM singer WHERE singer.Age = (SELECT MIN(Age) FROM singer)
+SELECT Song_Name, Song_release_year  FROM singer  WHERE Age = (SELECT MIN(Age) FROM singer)
+SELECT DISTINCT Country FROM singer WHERE Age > 20;
+SELECT DISTINCT Country FROM singer WHERE Age > 20;
+SELECT singer.Country, COUNT(*) AS num_singers FROM singer GROUP BY singer.Country;
+SELECT Country, COUNT(*) AS num_singers FROM singer GROUP BY Country
+SELECT Song_Name  FROM singer  WHERE Age > (SELECT AVG(Age) FROM singer)
+SELECT Song_Name  FROM singer  WHERE Age > (SELECT AVG(Age) FROM singer)
+SELECT Location, Name FROM stadium WHERE Capacity BETWEEN 5000 AND 10000;
+SELECT Location, Name FROM stadium WHERE Capacity BETWEEN 5000 AND 10000;
+SELECT MAX(Capacity), AVG(Capacity) FROM stadium;
+SELECT AVG(Capacity), MAX(Capacity) FROM stadium;
+SELECT Name, Capacity FROM stadium WHERE Average = (SELECT MAX(Average) FROM stadium)
+SELECT Name, Capacity  FROM stadium  WHERE Average = (SELECT MAX(Average) FROM stadium)
