@@ -39,12 +39,9 @@ SELECT avg(weight) ,  pettype FROM pets GROUP BY pettype
 SELECT T1.fname ,  T1.age FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'dog' AND T1.stuid NOT IN (SELECT T1.stuid FROM student AS T1 JOIN has_pet AS T2 ON T1.stuid  =  T2.stuid JOIN pets AS T3 ON T3.petid  =  T2.petid WHERE T3.pettype  =  'cat')
 '''
 
-zero_shots_SQL_generation_prompt = '''
-Sorry, I won't give you any examples. Please generate based on your own semantic parsing ability.
-'''
 
 three_shots_SQL_generation_prompt_from_Bard = '''
-I will give you some expamples of how SQL is generated, please follow the instructions and generate your own answer(SQL).
+I will give you some expamples of translate questions to SQLs, I will also explain how the SQLs are generated step by step. please follow the instructions and generate your own answer(SQL).
 '''
 
 three_shot_Spider_prompt_without_explain = '''
@@ -330,7 +327,7 @@ if __name__ == '__main__':
         '''message to Bard, to get few-shots'''
         message_Bard = few_shot_generation_prompt_Bard + \
                        three_shot_Spider_prompt_without_explain + \
-                       "Now, It is your turn." + \
+                       "Now, It is your turn:" + \
                        "\ndatabase:" + db_id + \
                        "\ndatabase chema:" + schema
         print('message to Bard:', message_Bard)
@@ -338,7 +335,8 @@ if __name__ == '__main__':
         print('response_Bard:', response_Bard)
         ###############################################
         '''message to GPT, to get SQL'''
-        message_GPT = three_shots_SQL_generation_prompt_from_Bard + \
+        message_GPT = SQL_generation_prompt + \
+                      three_shots_SQL_generation_prompt_from_Bard + \
                       response_Bard + \
                       SQL_generation_prompt + \
                         "\ndatabase:" + db_id + \
@@ -354,9 +352,9 @@ if __name__ == '__main__':
         SQLs_temp_pred.append(SQL)
         SQLs_temp_gold.append(SQL_gold+'\t'+db_id)
 
-        with open ('./predicted_sql.txt', 'a') as f:
-                f.write(SQL+'\n')
-        with open ('./gold_sql.txt', 'a') as f:
-                f.write(SQL_gold+'\t'+db_id+'\n')
+        # with open ('./predicted_sql.txt', 'a') as f:
+        #         f.write(SQL+'\n')
+        # with open ('./gold_sql.txt', 'a') as f:
+        #         f.write(SQL_gold+'\t'+db_id+'\n')
 
 # python v2.py
