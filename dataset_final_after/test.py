@@ -9,16 +9,23 @@ def count_tables_and_columns(json_file):
     with open(json_file, 'r') as f:
         data = json.load(f)
 
+    print(f"Data type: {type(data)}")  # Add this
+    print(f"First entry: {data[0]}")  # And this
+
     # Count tables and columns
     table_set = set()
     column_count = 0
     for entry in data:
+        print(f"Entry type: {type(entry)}")  # Add this
+        print(f"Entry content: {entry}")  # And this
+
         table_id = entry["column_names"][0][0]
         if table_id != -1:
             table_set.add(table_id)
             column_count += 1
 
     return len(table_set), column_count
+
 
 def process_directory(dir_path):
     # Ensure directory exists
@@ -43,10 +50,10 @@ def process_directory(dir_path):
 
     return results
 
-def calculate_statistics(results):
+def calculate_statistics(data):
     # Get all table counts and column counts
-    table_counts = [v["table_count"] for v in results.values()]
-    column_counts = [v["column_count"] for v in results.values()]
+    table_counts = [entry["table_count"] for entry in data]
+    column_counts = [entry["column_count"] for entry in data]
 
     # Calculate statistics
     avg_tables = statistics.mean(table_counts)
@@ -65,6 +72,7 @@ def calculate_statistics(results):
     print(f"Maximum number of columns: {max_columns}")
     print(f"Variance of number of columns: {var_columns}")
 
+
 # Example usage:
-# results = process_directory('../dataset_final_after/schemas')
-# calculate_statistics(results)
+results = process_directory('../dataset_final_after/schemas')
+calculate_statistics(results)
