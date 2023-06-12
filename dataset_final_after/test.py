@@ -4,28 +4,24 @@ import glob
 import statistics
 from collections import defaultdict
 
+
 def count_tables_and_columns(json_file):
     # Load JSON file
     with open(json_file, 'r') as f:
-        data = json.load(f)
+        json_obj = json.load(f)
 
-    print(f"Data type: {type(data)}")  # Add this
-    print(f"First entry: {data[0]}")  # And this
-
-    # Count tables and columns
-    table_set = set()
+    # Initialize counts
+    table_count = 0
     column_count = 0
-    for entry in data:
-        print(f"Entry type: {type(entry)}")  # Add this
-        print(f"Entry content: {entry}")  # And this
 
-        table_id = entry["column_names"][0][0]
-        if table_id != -1:
-            table_set.add(table_id)
-            column_count += 1
+    for table, columns in json_obj.items():
+        # Skip if columns is None or empty
+        if columns is None or len(columns) == 0:
+            continue
+        table_count += 1
+        column_count += len(columns)
 
-    return len(table_set), column_count
-
+    return table_count, column_count
 
 def process_directory(dir_path):
     # Ensure directory exists
@@ -50,10 +46,10 @@ def process_directory(dir_path):
 
     return results
 
-def calculate_statistics(data):
+def calculate_statistics(results):
     # Get all table counts and column counts
-    table_counts = [entry["table_count"] for entry in data]
-    column_counts = [entry["column_count"] for entry in data]
+    table_counts = [v["table_count"] for v in results.values()]
+    column_counts = [v["column_count"] for v in results.values()]
 
     # Calculate statistics
     avg_tables = statistics.mean(table_counts)
@@ -71,7 +67,6 @@ def calculate_statistics(data):
     print(f"Average number of columns: {avg_columns}")
     print(f"Maximum number of columns: {max_columns}")
     print(f"Variance of number of columns: {var_columns}")
-
 
 # Example usage:
 results = process_directory('../dataset_final_after/schemas')
