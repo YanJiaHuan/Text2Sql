@@ -7,7 +7,7 @@ import pandas as pd
 
 WHERE_OPS = ("NOT", "BETWEEN", "=", ">", "<", ">=", "<=", "!=", "IN", "LIKE", "IS", "EXISTS")
 AGG_OPS = ("COUNT", "MAX", "MIN", "SUM", "AVG")
-
+DDL_OPS = ("INSERT", "CREATE", "ALTER", "UPDATE", "DELETE", "DROP")
 def get_nestedSQL(parsed):
     nested = []
     for token in parsed.tokens:
@@ -53,11 +53,20 @@ def count_others(parsed):
         count += 1
     return count
 
+
 def eval_hardness(sql):
     parsed = sqlparse.parse(sql)[0]
     count_comp1_ = count_component1(parsed)
     count_comp2_ = count_component2(parsed)
     count_others_ = count_others(parsed)
+
+    # Check for DDL operations
+    for token in parsed.tokens:
+        if token.value.upper() in DDL_OPS:
+            if token.value.upper() in ["INSERT", "CREATE", "ALTER", "UPDATE"]:
+                return "add"
+            elif token.value.upper() in ["DELETE", "DROP"]:
+                return "drop"
 
     if count_comp1_ <= 1 and count_others_ == 0 and count_comp2_ == 0:
         return "easy"
@@ -83,7 +92,7 @@ def process_directory(directory_path):
             filepath = os.path.join(directory_path, filename)
             with open(filepath, 'r') as f:
                 data = json.load(f)
-            sql_queries = [sql for sql in data['query']]
+            sql_queries = [sql for sql in data['sql']]
 
             file_difficulties = []
             for query in sql_queries:
@@ -113,7 +122,11 @@ print('Count of difficulties:')
 print(pd.Series(difficulties).value_counts())
 
 
-# file_results, total_counts = process_directory(path_self)
-#
-# print("Total counts:", total_counts)
-# print("File specific results:", file_results)
+file_results, total_counts = process_directory(path_self)
+
+print("Total counts:", total_counts)
+print("File specific results:", file_results)
+
+
+test = "INSERT INTO Employees (FirstName, LastName, Title, Salary) VALUES ('Jane', 'Doe', 'Salesperson', 50000)"
+print(eval_hardness(test)) # easy
