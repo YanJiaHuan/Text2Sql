@@ -396,12 +396,13 @@ def Count_ours():
 
     for f in glob("schemas/*.schema.json"):
         topic = f.split("/")[-1].split(".")[0]
+        sql_count = 0
         with open(f, 'r') as schema_file, open("data/%s.json" % topic) as data_file:
             schema = json.load(schema_file)
             data = json.load(data_file)
-
+            sql_count = len(data)
             failed = 0
-
+            database_stats[topic]['sql_count'] = sql_count
             # Count tables and columns
             database_stats[topic]['num_tables'] = len(schema)
             database_stats[topic]['num_columns'] = sum(len(cols) for cols in schema.values())
@@ -433,9 +434,20 @@ def Count_ours():
 
     # Print aggregation statistics
     print('condition_count:', agg_stats)
-    print('Database stats:', {db: {'avg_tokens': stats['tokens'] / stats['count'], 'num_tables': stats['num_tables'], 'num_columns': stats['num_columns'], 'condition_count': dict(stats['condition_count'])} for db, stats in database_stats.items()})
+    print('Database stats:', {db: {'avg_tokens': stats['tokens'] / stats['count'], 'num_tables': stats['num_tables'], 'num_columns': stats['num_columns'], 'sql_count': stats['sql_count'],'condition_count': dict(stats['condition_count'])} for db, stats in database_stats.items()})
     print('Hardness stats:', dict(stats))
+    database_stats_for_json = {
+        db: {
+            'avg_tokens': stats['tokens'] / stats['count'],
+            'num_tables': stats['num_tables'],
+            'num_columns': stats['num_columns'],
+            'sql_count': stats['sql_count'],
+            'condition_count': dict(stats['condition_count'])
+        } for db, stats in database_stats.items()
+    }
 
+    with open('./database_stats.json', 'w') as f:
+        json.dump(database_stats_for_json, f)
 
 if __name__ == "__main__":
     Count_ours()
