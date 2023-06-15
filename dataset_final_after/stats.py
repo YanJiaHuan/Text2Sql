@@ -354,8 +354,7 @@ def isValidSQL(sql, db):
     return True
 
 
-def Count_length (sql):
-    return len(sql.split(" "))
+
 
 import tiktoken
 def num_tokens_from_string(string: str) -> int:
@@ -365,73 +364,141 @@ def num_tokens_from_string(string: str) -> int:
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
+import re
+
+def condition_count_meta(sql):
+    record = {}
+    record["orderBy"] = len(re.findall(r"(?i)\bORDER BY\b", sql))
+    record["groupBy"] = len(re.findall(r"(?i)\bGROUP BY\b", sql))
+    record["having"] = len(re.findall(r"(?i)\bHAVING\b", sql))
+    record["nested"] = len(re.findall(r"\([^)]*\bSELECT\b", sql))
+    record["join"] = len(re.findall(r"(?i)\bJOIN\b", sql))
+    return record
+def condition_count(sql):
+    record = {}
+    record["orderBy"] = 1 if re.search(r"(?i)\bORDER BY\b", sql) else 0
+    record["groupBy"] = 1 if re.search(r"(?i)\bGROUP BY\b", sql) else 0
+    record["having"] = 1 if re.search(r"(?i)\bHAVING\b", sql) else 0
+    record["nested"] = 1 if re.search(r"\([^)]*\bSELECT\b", sql) else 0
+    record["join"] = 1 if re.search(r"(?i)\bJOIN\b", sql) else 0
+    return record
+
+def Count_ours():
+    stats = defaultdict(int)
+    total_counts = 0
+    total_tokens = 0
+
+    # Aggregation statistics
+    agg_stats = defaultdict(int)
+
+    # New dictionary to hold per-database statistics
+    database_stats = defaultdict(lambda: {'tokens': 0, 'count': 0, 'condition_count': defaultdict(int), 'num_tables': 0, 'num_columns': 0})
+
+    for f in glob("schemas/*.schema.json"):
+        topic = f.split("/")[-1].split(".")[0]
+        with open(f, 'r') as schema_file, open("data/%s.json" % topic) as data_file:
+            schema = json.load(schema_file)
+            data = json.load(data_file)
+
+            failed = 0
+
+            # Count tables and columns
+            database_stats[topic]['num_tables'] = len(schema)
+            database_stats[topic]['num_columns'] = sum(len(cols) for cols in schema.values())
+            schema = Schema(schema)
+            for entry in data:
+                sql = entry["sql"]
+                record = condition_count(sql)  # record
+                num_tokens = num_tokens_from_string(sql)
+                total_tokens += num_tokens
+                total_counts += 1
+
+                # Update the stats for this database
+                database_stats[topic]['tokens'] += num_tokens
+                database_stats[topic]['count'] += 1
+                for k, v in record.items():
+                    database_stats[topic]['condition_count'][k] += v
+                    agg_stats[k] += v
+
+                try:
+                    g_sql = get_sql(schema, sql)
+                    hardness = eval_hardness(g_sql)
+                    stats[hardness] += 1
+                except:
+                    failed += 1
+                    stats["failed"] += 1
+
+    if total_counts > 0:
+        print('Total average tokens:', total_tokens / total_counts)
+
+    # Print aggregation statistics
+    print('condition_count:', agg_stats)
+    print('Database stats:', {db: {'avg_tokens': stats['tokens'] / stats['count'], 'num_tables': stats['num_tables'], 'num_columns': stats['num_columns'], 'condition_count': dict(stats['condition_count'])} for db, stats in database_stats.items()})
+    print('Hardness stats:', dict(stats))
+
+
 if __name__ == "__main__":
-    # stats = defaultdict(int)
-    # total_counts = 0
-    # for f in glob("schemas/*.schema.json"):
-    #     print(f)
-    #     topic = f.split("/")[-1].split(".")[0]
-    #     with open("schemas/%s.schema.json"%topic) as f:
-    #         print(topic)
-    #         schema = Schema(json.load(f))
-    #         print(schema)
-    #         failed = 0
-    #         with open("data/%s.json"%topic) as f:
-    #             j = json.load(f)
-    #
-    #             for jl in j:
-    #                 print(Count_length(jl["sql"]))
-    #                 total_counts += 1
-    #                 #print(j["sql"])
-    #                 try:
-    #                     g_sql = get_sql(schema, jl["sql"])
-    #                     hardness = eval_hardness(g_sql)
-    #                     stats[hardness] += 1
-    #                 except:
-    #                     failed += 1
-    #                     stats["failed"] += 1
-    # print(stats)
-    # print(total_counts)
-    test = "SELECT Transactions.TransactionDate, Transactions.Description, Transactions.Amount FROM Transactions INNER JOIN Accounts ON Transactions.AccountID = Accounts.AccountID WHERE Accounts.AccountName = 'Accounts Payable'"
-    print(num_tokens_from_string(test))
-
-
+    Count_ours()
+    # test = "SELECT Customers.CustomerName, SUM(Sales.Amount) AS TotalPurchases FROM Customers JOIN Sales ON Customers.CustomerID = Sales.CustomerID GROUP BY Customers.CustomerName ORDER BY TotalPurchases DESC;"
+    # test2 = "SELECT count(*) ,  T1.year FROM postseason AS T1 JOIN team AS T2 ON T1.team_id_winner  =  T2.team_id_br WHERE T2.name  =  'Boston Red Stockings' GROUP BY T1.year"
+    # db2 = "/Users/yan/Desktop/text2sql/spider/database/baseball_1/baseball_1.sqlite"
+    # db = "./schemas/accounting.schema.json"
+    # # schema = Schema(json.load(open(db)))
+    # # g_sql = get_sql(schema, test)
+    # # print(g_sql)
+    # schema = Schema(get_schema(db2))
+    # g_sql = get_sql(schema, test2)
+    # print(g_sql)
     ################ Spider ################
-    # stats = defaultdict(int)
-    # total_counts = 0
-    # failed = 0
-    # db_path  = '/Users/yan/Desktop/text2sql/spider/database'
-    # gold_path = '../multi_turn/Bard_GPT/V0/gold.txt'
-    # with open(gold_path) as f:
-    #     gold = f.readlines()
-    # for index,sample in enumerate(gold):
-    #     total_counts += 1
-    #     # try:
-    #     #     sql, db_id = sample.split("\t")
-    #     # except:
-    #     #     print(index)
-    #     #     pass
-    #     sql, db_id = sample.rsplit("\t", 1)
-    #     db_id = db_id.strip()  # remove potential trailing whitespace
-    #     db = f"{db_path}/{db_id}/{db_id}.sqlite"
-    #     print(db)
-    #     # try:
-    #     #     schema = Schema(get_schema(db))
-    #     # except:
-    #     #     failed += 1
-    #     #     stats["failed"] += 1
-    #     #     continue
-    #     schema = Schema(get_schema(db))
-    #     try:
-    #         g_sql = get_sql(schema, sql)
-    #         hardness = eval_hardness(g_sql)
-    #         stats[hardness] += 1
-    #     except:
-    #         failed += 1
-    #         stats["failed"] += 1
-    # print(stats)
-    # print(total_counts)
-    # print(failed)
+    stats = defaultdict(int)
+    agg_stats = defaultdict(int)
+    length_counts = defaultdict(int)  # New dictionary to keep track of cumulative SQL lengths per database
+    num_queries = defaultdict(int)  # New dictionary to keep track of number of queries per database
+    total_counts = 0
+    total_length = 0  # Variable to keep track of total SQL length across all databases
+    failed = 0
+    db_path = '/Users/yan/Desktop/text2sql/spider/database'
+    gold_path = '../multi_turn/Bard_GPT/V0/gold.txt'
+    with open(gold_path) as f:
+        gold = f.readlines()
+    for index, sample in enumerate(gold):
+        total_counts += 1
+        sql, db_id = sample.rsplit("\t", 1)
+        db_id = db_id.strip()  # remove potential trailing whitespace
+        db = f"{db_path}/{db_id}/{db_id}.sqlite"
+        schema = Schema(get_schema(db))
+        record = condition_count(sql)  # record
+        num_tokens = num_tokens_from_string(sql)
+
+        for k, v in record.items():
+            agg_stats[k] += v
+        try:
+            g_sql = get_sql(schema, sql)
+            hardness = eval_hardness(g_sql)
+            stats[hardness] += 1
+        except:
+            failed += 1
+            stats["failed"] += 1
+
+        # Add length of current SQL to the cumulative length for the current database
+        length_counts[db_id] += num_tokens
+        # Increase the number of queries for the current database
+        num_queries[db_id] += 1
+        # Add length of current SQL to the total length
+        total_length += num_tokens
+
+    print(stats)
+    print(total_counts)
+    print(failed)
+    print(agg_stats)
+
+    # Compute average length per database and print it
+    avg_length_per_db = {db: length_counts[db] / num_queries[db] for db in length_counts}
+    print('Average length per database:', avg_length_per_db)
+
+    # Compute total average length and print it
+    total_avg_length = total_length / total_counts if total_counts > 0 else 0
+    print('Total average length:', total_avg_length)
 
 
 
