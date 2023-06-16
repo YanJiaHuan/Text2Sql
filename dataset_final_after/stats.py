@@ -433,6 +433,7 @@ def Count_ours():
         print('Total average tokens:', total_tokens / total_counts)
 
     # Print aggregation statistics
+    print(total_counts)
     print('condition_count:', agg_stats)
     print('Database stats:', {db: {'avg_tokens': stats['tokens'] / stats['count'], 'num_tables': stats['num_tables'], 'num_columns': stats['num_columns'], 'sql_count': stats['sql_count'],'condition_count': dict(stats['condition_count'])} for db, stats in database_stats.items()})
     print('Hardness stats:', dict(stats))
