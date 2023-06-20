@@ -61,6 +61,19 @@ data = '''
 
 data_dict = json.loads(data)
 
+# Initialize a dictionary to hold the max values
+max_dict = {
+    'avg_tokens': {'value': 0, 'category': None},
+    'num_tables': {'value': 0, 'category': None},
+    'num_columns': {'value': 0, 'category': None},
+    'sql_count': {'value': 0, 'category': None},
+    'orderBy': {'value': 0, 'category': None},
+    'groupBy': {'value': 0, 'category': None},
+    'having': {'value': 0, 'category': None},
+    'nested': {'value': 0, 'category': None},
+    'join': {'value': 0, 'category': None}
+}
+
 output = ''
 for category, stats in data_dict.items():
     line = "{} & {} & {} & {} & {} & {} & {} & {} & {} & {} \\\\".format(
@@ -77,4 +90,27 @@ for category, stats in data_dict.items():
     )
     output += line + '\n'
 
+    # Check if each stat is a new max and if so, update the max_dict
+    if stats['avg_tokens'] > max_dict['avg_tokens']['value']:
+        max_dict['avg_tokens']['value'] = stats['avg_tokens']
+        max_dict['avg_tokens']['category'] = category
+    if stats['num_tables'] > max_dict['num_tables']['value']:
+        max_dict['num_tables']['value'] = stats['num_tables']
+        max_dict['num_tables']['category'] = category
+    if stats['num_columns'] > max_dict['num_columns']['value']:
+        max_dict['num_columns']['value'] = stats['num_columns']
+        max_dict['num_columns']['category'] = category
+    if stats['sql_count'] > max_dict['sql_count']['value']:
+        max_dict['sql_count']['value'] = stats['sql_count']
+        max_dict['sql_count']['category'] = category
+    # Same for conditions
+    for condition in ['orderBy', 'groupBy', 'having', 'nested', 'join']:
+        if stats['condition_count'][condition] > max_dict[condition]['value']:
+            max_dict[condition]['value'] = stats['condition_count'][condition]
+            max_dict[condition]['category'] = category
+
 print(output)
+
+# Now print the max of every element, indexed by category
+for stat, info in max_dict.items():
+    print("The maximum value of {} is {} in the category {}.".format(stat, info['value'], info['category']))
