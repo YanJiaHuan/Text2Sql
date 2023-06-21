@@ -63,10 +63,8 @@ def eval_hardness(sql):
     # Check for DDL operations
     for token in parsed.tokens:
         if token.value.upper() in DDL_OPS:
-            if token.value.upper() in ["INSERT", "CREATE", "ALTER", "UPDATE"]:
-                return "add"
-            elif token.value.upper() in ["DELETE", "DROP"]:
-                return "drop"
+            # return as 'others' rather than 'add' or 'drop'
+            return "others"
 
     if count_comp1_ <= 1 and count_others_ == 0 and count_comp2_ == 0:
         return "easy"
@@ -82,6 +80,7 @@ def eval_hardness(sql):
         return "hard"
     else:
         return "extra"
+
 
 def process_directory(directory_path):
     difficulties = {"easy": 0, "medium": 0, "hard": 0, "extra": 0}
