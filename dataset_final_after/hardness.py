@@ -82,50 +82,68 @@ def eval_hardness(sql):
         return "extra"
 
 
-def process_directory(directory_path):
-    difficulties = {"easy": 0, "medium": 0, "hard": 0, "extra": 0}
-    file_results = {}
+import random
 
-    for filename in os.listdir(directory_path):
+def process_directory(directory_path):
+    difficulties = {"easy": 0, "medium": 0, "hard": 0, "extra": 0, "others": 0}
+    file_results = {}
+    samples = {"easy": [], "medium": [], "hard": [], "extra": [], "others": []}
+    selected_dbs = {"easy": set(), "medium": set(), "hard": set(), "extra": set(), "others": set()}
+
+    filenames = os.listdir(directory_path)
+    random.shuffle(filenames)  # shuffle filenames to randomize selection
+
+    for filename in filenames:
         if filename.endswith(".json"):
             filepath = os.path.join(directory_path, filename)
             with open(filepath, 'r') as f:
                 data = json.load(f)
-            sql_queries = [sql for sql in data['sql']]
+            sql_queries = [(item['sql'], item['text'], item['tables']) for item in data]
 
             file_difficulties = []
-            for query in sql_queries:
+            for query, text, tables in sql_queries:
                 hardness = eval_hardness(query)
                 difficulties[hardness] += 1
                 file_difficulties.append(hardness)
 
+                # Save samples for each category if not yet selected from this database
+                if len(samples[hardness]) < 3 and filename not in selected_dbs[hardness]:
+                    samples[hardness].append({
+                        'database': filename,
+                        'sql': query,
+                        'text': text,
+                        'tables': tables,
+                    })
+                    selected_dbs[hardness].add(filename)  # mark this database as selected for this hardness
+
             file_results[filename] = file_difficulties
 
-    return file_results, difficulties
+    return file_results, difficulties, samples
 
-path_Spider_test = '../dev.json'
-path_Spider_train = '../train_spider.json'
+# path_Spider_test = '../dev.json'
+# path_Spider_train = '../train_spider.json'
+# with open(path_Spider_test, 'r') as f:
+#     Spider_test = pd.read_json(f)
+# with open(path_Spider_train, 'r') as f:
+#     Spider_train = pd.read_json(f)
+# Spider = pd.concat([Spider_test, Spider_train], ignore_index=True)
+# sql_dev = [sql for sql in Spider['query']]
+
+# difficulties = []
+# for query in sql_dev:
+#     difficulties.append(eval_hardness(query))
+#
+# print('Count of difficulties:')
+# print(pd.Series(difficulties).value_counts())
+
 path_self = './data'
-with open(path_Spider_test, 'r') as f:
-    Spider_test = pd.read_json(f)
-with open(path_Spider_train, 'r') as f:
-    Spider_train = pd.read_json(f)
-Spider = pd.concat([Spider_test, Spider_train], ignore_index=True)
-sql_dev = [sql for sql in Spider['query']]
+file_results, total_counts, samples = process_directory(path_self)
 
-difficulties = []
-for query in sql_dev:
-    difficulties.append(eval_hardness(query))
-
-print('Count of difficulties:')
-print(pd.Series(difficulties).value_counts())
-
-
-file_results, total_counts = process_directory(path_self)
-
+# Output the results
 print("Total counts:", total_counts)
 print("File specific results:", file_results)
-
-
-test = "INSERT INTO Employees (FirstName, LastName, Title, Salary) VALUES ('Jane', 'Doe', 'Salesperson', 50000)"
-print(eval_hardness(test)) # easy
+print("Samples:")
+for hardness, samples_list in samples.items():
+    print(f"{hardness} samples:")
+    for sample in samples_list:
+        print(sample)

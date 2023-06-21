@@ -383,8 +383,10 @@ def condition_count(sql):
     record["join"] = 1 if re.search(r"(?i)\bJOIN\b", sql) else 0
     return record
 
+import random
 def Count_ours():
     stats = defaultdict(int)
+    examples = defaultdict(list)  # add a defaultdict of lists to store examples
     total_counts = 0
     total_tokens = 0
 
@@ -392,7 +394,8 @@ def Count_ours():
     agg_stats = defaultdict(int)
 
     # New dictionary to hold per-database statistics
-    database_stats = defaultdict(lambda: {'tokens': 0, 'count': 0, 'condition_count': defaultdict(int), 'num_tables': 0, 'num_columns': 0})
+    database_stats = defaultdict(
+        lambda: {'tokens': 0, 'count': 0, 'condition_count': defaultdict(int), 'num_tables': 0, 'num_columns': 0})
 
     for f in glob("schemas/*.schema.json"):
         topic = f.split("/")[-1].split(".")[0]
@@ -425,6 +428,10 @@ def Count_ours():
                     g_sql = get_sql(schema, sql)
                     hardness = eval_hardness(g_sql)
                     stats[hardness] += 1
+
+                    # add the query to the list of examples for its hardness
+                    examples[hardness].append((topic, schema.tables, sql))
+
                 except:
                     failed += 1
                     stats["failed"] += 1
@@ -449,6 +456,27 @@ def Count_ours():
 
     with open('./database_stats.json', 'w') as f:
         json.dump(database_stats_for_json, f)
+
+    for hardness in ['easy', 'medium', 'hard', 'extra hard']:
+        print(f"{hardness} examples:")
+
+        # Get the list of examples for this hardness
+        hardness_examples = examples[hardness]
+
+        # Use random.sample() to select up to 3 examples
+        # random.sample() will raise a ValueError if there are fewer than 3 examples,
+        # so catch that exception and just use all examples in that case
+        try:
+            selected_examples = random.sample(hardness_examples, 3)
+        except ValueError:
+            selected_examples = hardness_examples
+
+        for example in selected_examples:
+            topic, tables, sql = example
+            print(f"Topic: {topic}")
+            print(f"Tables: {', '.join(tables)}")
+            print(f"SQL: {sql}")
+            print()
 
 if __name__ == "__main__":
     Count_ours()
@@ -512,6 +540,5 @@ if __name__ == "__main__":
     # Compute total average length and print it
     total_avg_length = total_length / total_counts if total_counts > 0 else 0
     print('Total average length:', total_avg_length)
-
 
 
