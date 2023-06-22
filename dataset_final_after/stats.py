@@ -430,7 +430,7 @@ def Count_ours():
                     stats[hardness] += 1
 
                     # add the query to the list of examples for its hardness
-                    examples[hardness].append((topic, schema.tables, sql))
+                    examples[hardness].append((topic, entry['tables'], entry['text'], sql))
 
                 except:
                     failed += 1
@@ -457,7 +457,7 @@ def Count_ours():
     with open('./database_stats.json', 'w') as f:
         json.dump(database_stats_for_json, f)
 
-    for hardness in ['easy', 'medium', 'hard', 'extra hard']:
+    for hardness in ['easy', 'medium', 'hard', 'extra']:
         print(f"{hardness} examples:")
 
         # Get the list of examples for this hardness
@@ -472,11 +472,12 @@ def Count_ours():
             selected_examples = hardness_examples
 
         for example in selected_examples:
-            topic, tables, sql = example
+            topic, tables, text, sql = example
             print(f"Topic: {topic}")
             print(f"Tables: {', '.join(tables)}")
+            print(f"Text: {text}")
             print(f"SQL: {sql}")
-            print()
+
 
 if __name__ == "__main__":
     Count_ours()
