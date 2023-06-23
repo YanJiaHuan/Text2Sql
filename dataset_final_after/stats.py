@@ -543,3 +543,4 @@ if __name__ == "__main__":
     print('Total average length:', total_avg_length)
 
 
+test = " SELECT plants.name, plant_varieties.variety FROM garden_plants JOIN plants ON garden_plants.plant_id = plants.id LEFT JOIN plant_varieties ON garden_plants.variety_id = plant_varieties.id WHERE garden_plants.garden_id = 1;"
