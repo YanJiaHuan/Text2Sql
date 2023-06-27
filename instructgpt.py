@@ -47,7 +47,7 @@ def compute_metrics(eval_pred):
 
 # Set up training arguments
 training_args = TrainingArguments(
-    "test-clm",
+    "AI_Tutor_Training",
     evaluation_strategy = "epoch",
     learning_rate=1e-4,
     weight_decay=0.01,
@@ -57,6 +57,7 @@ training_args = TrainingArguments(
     per_device_eval_batch_size=16,  # specify the evaluation batch size if you want it to be different from the training batch size
     load_best_model_at_end=True,
     metric_for_best_model="accuracy",
+    deepspeed="ds_config_zero3.json",
 )
 
 # Train the model
