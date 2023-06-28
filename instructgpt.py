@@ -19,11 +19,17 @@ accuracy_metric = load_metric('accuracy')
 
 # Tokenize and format the dataset
 def format_dataset(example):
-    # Tokenize context and question
-    tokenized_input = tokenizer(example['input'], padding='max_length', truncation=True, max_length=512)
-    # Tokenize answer
-    tokenized_label = tokenizer(example['output'], padding='max_length', truncation=True, max_length=512)
-    return {'input_ids': tokenized_input['input_ids'], 'labels': tokenized_label['input_ids']}
+    # Combine instruction and input
+    combined_input = [instr + "[SEP]" + inp for instr, inp in zip(example['instruction'], example['input'])]
+    combined_input_str = [' '.join(tokens) for tokens in combined_input]
+
+    # Tokenize combined input
+    tokenized_input = tokenizer(combined_input_str, padding='max_length', truncation=True, max_length=512, return_tensors='pt')
+
+    # Tokenize output
+    tokenized_output = tokenizer(example['output'], padding='max_length', truncation=True, max_length=512, return_tensors='pt')
+
+    return {'input_ids': tokenized_input['input_ids'], 'labels': tokenized_output['input_ids']}
 
 # Tokenize and format the datasets
 tokenized_train_dataset = data['train'].map(format_dataset, batched=True)
@@ -47,17 +53,18 @@ def compute_metrics(eval_pred):
 
 # Set up training arguments
 training_args = TrainingArguments(
-    "AI_Tutor_Training",
+    output_dir = "AI_Tutor_Training",
     evaluation_strategy = "epoch",
     learning_rate=1e-4,
     weight_decay=0.01,
     save_strategy='epoch',
-    num_train_epochs=5,  # specify the number of epochs you want here
-    per_device_train_batch_size=16,  # specify the batch size you want here
-    per_device_eval_batch_size=16,  # specify the evaluation batch size if you want it to be different from the training batch size
+    num_train_epochs=2,  # specify the number of epochs you want here
+    per_device_train_batch_size=8,  # specify the batch size you want here
+    per_device_eval_batch_size=8,  # specify the evaluation batch size if you want it to be different from the training batch size
     load_best_model_at_end=True,
     metric_for_best_model="accuracy",
     deepspeed="ds_config_zero3.json",
+    fp16 = True
 )
 
 # Train the model
@@ -69,27 +76,28 @@ trainer = Trainer(
     compute_metrics=compute_metrics,
 )
 
-# trainer.train()
+trainer.train()
 
-from transformers import pipeline
+# from transformers import pipeline
+#
+# # Load your trained model and the corresponding tokenizer
+# model = GPT2LMHeadModel.from_pretrained('./test-clm/checkpoint-3645')
+# tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+#
+# # Add padding token to the tokenizer
+# tokenizer.pad_token = tokenizer.eos_token
+#
+# # Create a pipeline for text generation
+# generator = pipeline('text-generation', model=model, tokenizer=tokenizer)  # device=0 means it will run on the first GPU
+#
+# # Run inference on the model
+# input_text = tokenized_eval_dataset[0]
+# print('input_text', input_text)
+# truncated_input = input_text['input'][:tokenizer.model_max_length - 1]  # -1 for special tokens
+# output = generator(truncated_input, max_length=512, num_return_sequences=1)
+#
+#
+# print(output)
 
-# Load your trained model and the corresponding tokenizer
-model = GPT2LMHeadModel.from_pretrained('./test-clm/checkpoint-3645')
-tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
-# Add padding token to the tokenizer
-tokenizer.pad_token = tokenizer.eos_token
-
-# Create a pipeline for text generation
-generator = pipeline('text-generation', model=model, tokenizer=tokenizer)  # device=0 means it will run on the first GPU
-
-# Run inference on the model
-input_text = tokenized_eval_dataset[0]
-print('input_text', input_text)
-truncated_input = input_text['input'][:tokenizer.model_max_length - 1]  # -1 for special tokens
-output = generator(truncated_input, max_length=512, num_return_sequences=1)
-
-
-print(output)
-
-# CUDA_VISIBLE_DEVICES=0 python instructgpt.py
+# deepspeed --num_gpus=1 instructgpt.py --deepspeed ds_config_zero3.json
