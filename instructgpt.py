@@ -54,17 +54,20 @@ def compute_metrics(eval_pred):
 # Set up training arguments
 training_args = TrainingArguments(
     output_dir = "AI_Tutor_Training",
-    evaluation_strategy = "epoch",
+    evaluation_strategy = "steps",
+    eval_steps = 2000,
     learning_rate=1e-4,
     weight_decay=0.01,
-    save_strategy='epoch',
-    num_train_epochs=2,  # specify the number of epochs you want here
-    per_device_train_batch_size=8,  # specify the batch size you want here
+    save_strategy='steps',
+    save_steps = 6000,
+    num_train_epochs=10,  # specify the number of epochs you want here
+    per_device_train_batch_size=16,  # specify the batch size you want here
     per_device_eval_batch_size=8,  # specify the evaluation batch size if you want it to be different from the training batch size
     load_best_model_at_end=True,
     metric_for_best_model="accuracy",
     deepspeed="ds_config_zero3.json",
-    fp16 = True
+    fp16 = True,
+    eval_accumulation_steps = 20
 )
 
 # Train the model
