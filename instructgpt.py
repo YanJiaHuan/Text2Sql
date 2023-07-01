@@ -53,21 +53,22 @@ def compute_metrics(eval_pred):
     decoded_preds = [pred.split(' ') for pred in decoded_preds]
     decoded_labels = [[label.split(' ')] for label in decoded_labels]  # Note that it's a list of list
 
-
-    return bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
+    eval_score = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
+    metrics = {'eval_score': eval_score}
+    return metrics
 
 
 # Set up training arguments
 training_args = TrainingArguments(
     output_dir = "AI_Tutor_Training",
     evaluation_strategy = "steps",
-    eval_steps = 1,
+    eval_steps = 300,
     learning_rate=1e-4,
     weight_decay=0.01,
     save_strategy='steps',
-    save_steps = 6000,
+    save_steps = 600,
     num_train_epochs=20,  # specify the number of epochs you want here
-    per_device_train_batch_size=16,  # specify the batch size you want here
+    per_device_train_batch_size=32,  # specify the batch size you want here
     per_device_eval_batch_size=8,  # specify the evaluation batch size if you want it to be different from the training batch size
     gradient_accumulation_steps=1,  # dafault is 1
     eval_accumulation_steps=1,  # default is 1
