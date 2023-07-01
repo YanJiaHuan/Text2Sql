@@ -21,15 +21,12 @@ accuracy_metric = load_metric('accuracy')
 def format_dataset(example):
     # Combine instruction and input
     combined_input = [instr + "[SEP]" + inp for instr, inp in zip(example['instruction'], example['input'])]
-    combined_input_str = [' '.join(tokens) for tokens in combined_input]
 
-    # Tokenize combined input
-    tokenized_input = tokenizer(combined_input_str, padding='max_length', truncation=True, max_length=512, return_tensors='pt')
+    # Tokenize combined input and output
+    tokenized_input = tokenizer(combined_input, padding='max_length', truncation=True, max_length=512)
+    tokenized_output = tokenizer(example['output'], padding='max_length', truncation=True, max_length=512)
 
-    # Tokenize output
-    tokenized_output = tokenizer(example['output'], padding='max_length', truncation=True, max_length=512, return_tensors='pt')
-
-    return {'input_ids': tokenized_input['input_ids'], 'labels': tokenized_output['input_ids']}
+    return {'input_ids': tokenized_input['input_ids'], 'labels': tokenized_output['input_ids'], 'attention_mask': tokenized_input['attention_mask']}
 
 # Tokenize and format the datasets
 tokenized_train_dataset = data['train'].map(format_dataset, batched=True)
@@ -38,16 +35,11 @@ tokenized_eval_dataset = data['test'].map(format_dataset, batched=True)
 # Define compute metrics function
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
-    print('logits', logits)
-    print('labels', labels)
-    # Convert logits to token ids
-    decoded_preds = tokenizer.batch_decode(logits.argmax(-1), skip_special_tokens=True)
-    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    predictions = logits.argmax(-1)  # Convert logits to token ids
 
-    # Print some predictions for the sake of example
-    for i in range(5):  # Change this range according to your needs
-        print(f"Input: {decoded_preds[i]}")
-        print(f"Prediction: {decoded_labels[i]}\n")
+    # Decode token ids to tokens
+    decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
     # Compute accuracy (or other relevant metrics)
     return accuracy_metric.compute(predictions=decoded_preds, references=decoded_labels)
