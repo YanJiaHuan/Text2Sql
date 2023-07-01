@@ -15,15 +15,17 @@ data = load_dataset('json', data_files='train_1890.json')
 data = data['train'].train_test_split(test_size=0.1)
 
 # Define accuracy metric (Replace with your own relevant metric)
-accuracy_metric = load_metric('accuracy')
+bleu_metric = load_metric('sacrebleu')
 
 # Tokenize and format the dataset
 def format_dataset(example):
     # Combine instruction and input
-    combined_input = [instr + "[SEP]" + inp for instr, inp in zip(example['instruction'], example['input'])]
-
+    inputs = []
+    for instruction, context in zip(example['instruction'], example['input']):
+        input = 'Instruction: ' + instruction + ' Context: ' + context
+        inputs.append(input)
     # Tokenize combined input and output
-    tokenized_input = tokenizer(combined_input, padding='max_length', truncation=True, max_length=512)
+    tokenized_input = tokenizer(inputs, padding='max_length', truncation=True, max_length=512)
     tokenized_output = tokenizer(example['output'], padding='max_length', truncation=True, max_length=512)
 
     return {'input_ids': tokenized_input['input_ids'], 'labels': tokenized_output['input_ids'], 'attention_mask': tokenized_input['attention_mask']}
@@ -35,14 +37,17 @@ tokenized_eval_dataset = data['test'].map(format_dataset, batched=True)
 # Define compute metrics function
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
-    predictions = logits.argmax(-1)  # Convert logits to token ids
+    predictions = logits.argmax(-1)
 
-    # Decode token ids to tokens
-    decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
-    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    # Convert ids to tokens (do not skip special tokens)
+    decoded_preds = [tokenizer.decode(pred, skip_special_tokens=False) for pred in predictions]
+    decoded_labels = [tokenizer.decode(label, skip_special_tokens=False) for label in labels]
 
-    # Compute accuracy (or other relevant metrics)
-    return accuracy_metric.compute(predictions=decoded_preds, references=decoded_labels)
+    # Tokenize on space to get list of words (required for BLEU)
+    decoded_preds = [pred.split(' ') for pred in decoded_preds]
+    decoded_labels = [[label.split(' ')] for label in decoded_labels]  # Note that it's a list of list
+
+    return bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
 
 
 # Set up training arguments
@@ -55,13 +60,14 @@ training_args = TrainingArguments(
     save_strategy='steps',
     save_steps = 6000,
     num_train_epochs=20,  # specify the number of epochs you want here
-    per_device_train_batch_size=32,  # specify the batch size you want here
+    per_device_train_batch_size=16,  # specify the batch size you want here
     per_device_eval_batch_size=8,  # specify the evaluation batch size if you want it to be different from the training batch size
+    gradient_accumulation_steps=1,  # dafault is 1
+    eval_accumulation_steps=1,  # default is 1
     load_best_model_at_end=True,
     metric_for_best_model="accuracy",
-    deepspeed="ds_config_zero3.json",
+    deepspeed="./ds_config_zero3.json",
     fp16 = True,
-    eval_accumulation_steps = 8
 )
 
 # Train the model
