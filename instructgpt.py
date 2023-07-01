@@ -36,16 +36,23 @@ tokenized_eval_dataset = data['test'].map(format_dataset, batched=True)
 
 # Define compute metrics function
 def compute_metrics(eval_pred):
-    logits, labels = eval_pred
+    logits, labels, input_ids = eval_pred
     predictions = logits.argmax(-1)
 
     # Convert ids to tokens (do not skip special tokens)
     decoded_preds = [tokenizer.decode(pred, skip_special_tokens=False) for pred in predictions]
     decoded_labels = [tokenizer.decode(label, skip_special_tokens=False) for label in labels]
+    decoded_inputs = [tokenizer.decode(input, skip_special_tokens=False) for input in input_ids]
+    for i in range(min(5, len(decoded_preds))):  # print first 5 examples
+        print(f"Example {i+1}:")
+        print(f"Input: {decoded_inputs[i]}")
+        print(f"Prediction: {decoded_preds[i]}")
+        print(f"Label: {decoded_labels[i]}\n")
 
     # Tokenize on space to get list of words (required for BLEU)
     decoded_preds = [pred.split(' ') for pred in decoded_preds]
     decoded_labels = [[label.split(' ')] for label in decoded_labels]  # Note that it's a list of list
+
 
     return bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
 
@@ -68,6 +75,7 @@ training_args = TrainingArguments(
     metric_for_best_model="accuracy",
     deepspeed="./ds_config_zero3.json",
     fp16 = True,
+    include_inputs_for_metrics=True,
 )
 
 # Train the model
