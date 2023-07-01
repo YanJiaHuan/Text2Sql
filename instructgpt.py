@@ -37,8 +37,11 @@ tokenized_eval_dataset = data['test'].map(format_dataset, batched=True)
 
 # Define compute metrics function
 def compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+    logits, labels = eval_pred
+    print('logits', logits)
+    print('labels', labels)
+    # Convert logits to token ids
+    decoded_preds = tokenizer.batch_decode(logits.argmax(-1), skip_special_tokens=True)
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
     # Print some predictions for the sake of example
@@ -48,6 +51,7 @@ def compute_metrics(eval_pred):
 
     # Compute accuracy (or other relevant metrics)
     return accuracy_metric.compute(predictions=decoded_preds, references=decoded_labels)
+
 
 # Set up training arguments
 training_args = TrainingArguments(
