@@ -43,6 +43,9 @@ def compute_metrics(eval_pred):
     decoded_preds = [tokenizer.decode(pred, skip_special_tokens=False) for pred in predictions]
     decoded_labels = [tokenizer.decode(label, skip_special_tokens=False) for label in labels]
     decoded_inputs = [tokenizer.decode(input, skip_special_tokens=False) for input in input_ids]
+
+    decoded_preds = [pred.replace('<|endoftext|>', '') for pred in decoded_preds]
+    decoded_labels = [label.replace('<|endoftext|>', '') for label in decoded_labels]
     for i in range(min(5, len(decoded_preds))):  # print first 5 examples
         print(f"Example {i+1}:")
         print(f"Input: {decoded_inputs[i]}")
