@@ -55,19 +55,19 @@ def compute_metrics(eval_pred):
 training_args = TrainingArguments(
     output_dir = "AI_Tutor_Training",
     evaluation_strategy = "steps",
-    eval_steps = 2000,
+    eval_steps = 1,
     learning_rate=1e-4,
     weight_decay=0.01,
     save_strategy='steps',
     save_steps = 6000,
-    num_train_epochs=10,  # specify the number of epochs you want here
-    per_device_train_batch_size=16,  # specify the batch size you want here
+    num_train_epochs=20,  # specify the number of epochs you want here
+    per_device_train_batch_size=32,  # specify the batch size you want here
     per_device_eval_batch_size=8,  # specify the evaluation batch size if you want it to be different from the training batch size
     load_best_model_at_end=True,
     metric_for_best_model="accuracy",
     deepspeed="ds_config_zero3.json",
     fp16 = True,
-    eval_accumulation_steps = 20
+    eval_accumulation_steps = 8
 )
 
 # Train the model
@@ -103,4 +103,4 @@ trainer.train()
 # print(output)
 
 
-# deepspeed --num_gpus=1 instructgpt.py --deepspeed ds_config_zero3.json
+# deepspeed --include localhost:0,1,2,3 instructgpt.py --deepspeed ds_config_zero3.json
