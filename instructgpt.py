@@ -38,18 +38,16 @@ tokenized_eval_dataset = data['test'].map(format_dataset, batched=True)
 # Define compute metrics function
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
-    # Detokenize predictions
-    detokenized_predictions = [tokenizer.decode(pred, skip_special_tokens=True) for pred in predictions]
-    # Detokenize labels
-    detokenized_labels = [tokenizer.decode(label, skip_special_tokens=True) for label in labels]
+    decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
     # Print some predictions for the sake of example
     for i in range(5):  # Change this range according to your needs
-        print(f"Input: {detokenized_labels[i]}")
-        print(f"Prediction: {detokenized_predictions[i]}\n")
+        print(f"Input: {decoded_preds[i]}")
+        print(f"Prediction: {decoded_labels[i]}\n")
 
     # Compute accuracy (or other relevant metrics)
-    return accuracy_metric.compute(predictions=detokenized_predictions, references=detokenized_labels)
+    return accuracy_metric.compute(predictions=decoded_preds, references=decoded_labels)
 
 # Set up training arguments
 training_args = TrainingArguments(
