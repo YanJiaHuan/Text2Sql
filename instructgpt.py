@@ -113,7 +113,8 @@ def generate_text(prompt_text):
     # Move the encoded input to the device
     encoded_input = encoded_input.to(device)
     # Generate text
-    output = model.generate(encoded_input, max_length=1024, do_sample=True)  # Increased max_length to 1024
+    # output = model.generate(encoded_input, max_length=1024, do_sample=True)  # Increased max_length to 1024
+    output = model.generate(encoded_input, pad_token_id=tokenizer.eos_token_id)
     # Decode the output
     decoded_output = tokenizer.decode(output[0], skip_special_tokens=True)
     return decoded_output
@@ -123,16 +124,17 @@ data = load_dataset('json', data_files='train_1890.json')
 data = data['train'].train_test_split(test_size=0.1)
 
 # Randomly select 5 samples
-random_indices = random.sample(range(len(data['train'])), 5)
+random_indices = random.sample(range(len(data['test'])), 5)
 selected_samples = data['train'].select(random_indices)
 
 # Generate text for each selected sample
 for example in selected_samples:
     prompt_text = 'Instruction: ' + example['instruction'] + ' Context: ' + example['input']
+    # prompt_text = 'This is a test'
     print('Input:\n', prompt_text)
     print('Prediction:\n', generate_text(prompt_text))
     print('Label:\n', example['output'])
-
+    print('###'*10, '\n')
 
 
 
