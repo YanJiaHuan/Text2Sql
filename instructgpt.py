@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
-from transformers import AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer
+from transformers import GPT2LMHeadModel, Seq2SeqTrainingArguments, Seq2SeqTrainer
 from datasets import load_dataset, load_metric
 import nltk
 import evaluate
@@ -9,7 +9,7 @@ import random
 
 # Load pre-trained model and tokenizer
 tokenizer = AutoTokenizer.from_pretrained("gpt2")
-model = AutoModelForSeq2SeqLM.from_pretrained("gpt2")
+model = GPT2LMHeadModel.from_pretrained("gpt2")
 
 # Add padding token to the tokenizer
 tokenizer.pad_token = tokenizer.eos_token
