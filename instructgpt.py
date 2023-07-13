@@ -1,13 +1,15 @@
-from transformers import GPT2LMHeadModel, GPT2Tokenizer, GPT2Config, Trainer, TrainingArguments
+from transformers import AutoTokenizer, DataCollatorForSeq2Seq
+from transformers import AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer
 from datasets import load_dataset, load_metric
+import nltk
 import evaluate
 import numpy as np
 import torch
 import random
 
 # Load pre-trained model and tokenizer
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-model = GPT2LMHeadModel.from_pretrained("gpt2")
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+model = AutoModelForSeq2SeqLM.from_pretrained("gpt2")
 
 # Add padding token to the tokenizer
 tokenizer.pad_token = tokenizer.eos_token
@@ -22,73 +24,61 @@ data = data['train'].train_test_split(test_size=0.1)
 bleu_metric = load_metric('sacrebleu')
 # bleu_metric = evaluate.load('sacrebleu')
 # Tokenize and format the dataset
-def format_dataset(example):
-    # Combine instruction and input
-    inputs = []
-    for instruction, context in zip(example['instruction'], example['input']):
-        input = 'Instruction: ' + instruction + ' Context: ' + context
-        inputs.append(input)
-    # Tokenize combined input and output
-    tokenized_input = tokenizer(inputs, padding='max_length', truncation=True, max_length=512)
-    tokenized_output = tokenizer(example['output'], padding='max_length', truncation=True, max_length=512)
 
-    return {'input_ids': tokenized_input['input_ids'], 'labels': tokenized_output['input_ids'], 'attention_mask': tokenized_input['attention_mask']}
+# new process
+def preprocess_function(examples):
+    inputs = ['Instruction: ' + instruction + ' Context: ' + context for instruction, context in zip(examples["instruction"], examples["input"])]
+    model_inputs = tokenizer(inputs, max_length=1024, truncation=True)
 
-# Tokenize and format the datasets
-tokenized_train_dataset = data['train'].map(format_dataset, batched=True)
-tokenized_eval_dataset = data['test'].map(format_dataset, batched=True)
+    labels = tokenizer(text_target=examples["output"], max_length=512, truncation=True)
 
-# Define compute metrics function
-def compute_metrics(eval_pred):
-    logits, labels, input_ids = eval_pred
-    predictions = logits.argmax(-1)
+    model_inputs["labels"] = labels["input_ids"]
+    return model_inputs
 
-    # Convert ids to tokens (do not skip special tokens)
-    decoded_preds = [tokenizer.decode(pred, skip_special_tokens=False) for pred in predictions]
-    decoded_labels = [tokenizer.decode(label, skip_special_tokens=False) for label in labels]
-    decoded_inputs = [tokenizer.decode(input, skip_special_tokens=False) for input in input_ids]
+tokenized_data = data.map(preprocess_function, batched=True)
 
-    decoded_preds = [pred.replace('<|endoftext|>', '') for pred in decoded_preds]
-    decoded_labels = [label.replace('<|endoftext|>', '') for label in decoded_labels]
-    for i in range(min(5, len(decoded_preds))):  # print first 5 examples
-        print(f"Example {i+1}:")
-        print(f"Input: {decoded_inputs[i]}")
-        print(f"Prediction: {decoded_preds[i]}")
-        print(f"Label: {decoded_labels[i]}\n")
+# new metrci
+def compute_metrics(eval_preds):
+    preds, labels = eval_preds
 
-    # Tokenize on space to get list of words (required for BLEU)
-    decoded_preds = [pred.split(' ') for pred in decoded_preds]
-    decoded_labels = [[label.split(' ')] for label in decoded_labels]  # Note that it's a list of list
+    # decode preds and labels
+    labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+    decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-    eval_score = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
-    return {'eval_score': eval_score['score']}
+    # rougeLSum expects newline after each sentence
+    decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
+    decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
+
+    result = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+    return result
 
 
 # Set up training arguments
-training_args = TrainingArguments(
-    output_dir = "AI_Tutor_Training/"+task_name,
+training_args = Seq2SeqTrainingArguments(
+    output_dir = "AI_Tutor_Training/"+task_name + "_round2",
     evaluation_strategy = "steps",
     eval_steps = 200,
-    learning_rate=1e-5,
-    weight_decay=0.05,
+    learning_rate=2e-5,
+    weight_decay=0.01,
     save_strategy='steps',
     save_steps = 600,
-    num_train_epochs=1000,  # specify the number of epochs you want here
+    num_train_epochs=100,  # specify the number of epochs you want here
     per_device_train_batch_size=24,  # specify the batch size you want here
     per_device_eval_batch_size=8,  # specify the evaluation batch size if you want it to be different from the training batch size
     gradient_accumulation_steps=1,  # dafault is 1
     eval_accumulation_steps=1,  # default is 1
     # deepspeed="./ds_config_zero3.json",
-    fp16 = False,
-    include_inputs_for_metrics=True,
+    fp16 = True,
+    predict_with_generate=True,
 )
 
 # Train the model
-trainer = Trainer(
+trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
-    train_dataset=tokenized_train_dataset,
-    eval_dataset=tokenized_eval_dataset,
+    train_dataset=tokenized_data['train'],
+    eval_dataset=tokenized_data['test'],
     compute_metrics=compute_metrics,
 )
 
