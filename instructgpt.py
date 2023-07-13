@@ -2,7 +2,6 @@ from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from transformers import GPT2LMHeadModel, Seq2SeqTrainingArguments, Seq2SeqTrainer
 from datasets import load_dataset, load_metric
 import nltk
-import evaluate
 import numpy as np
 import torch
 import random
@@ -11,69 +10,63 @@ import random
 tokenizer = AutoTokenizer.from_pretrained("gpt2")
 model = GPT2LMHeadModel.from_pretrained("gpt2")
 data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
+
 # Add padding token to the tokenizer
 tokenizer.pad_token = tokenizer.eos_token
 data_path = 'train_1890/'
 task_name = 'title_train'
-# authors_train, keywords_train, background_train, methodologies_train, conclusions_train
+
 # Load your dataset
-data = load_dataset('json', data_files=data_path+task_name+'.json')
+data = load_dataset('json', data_files=data_path + task_name + '.json')
 data = data['train'].train_test_split(test_size=0.1)
 
-# Define accuracy metric (Replace with your own relevant metric)
+# Define accuracy metric
 bleu_metric = load_metric('sacrebleu')
-# bleu_metric = evaluate.load('sacrebleu')
-# Tokenize and format the dataset
 
-# new process
+
 def preprocess_function(examples):
-    inputs = ['Instruction: ' + instruction + ' Context: ' + context for instruction, context in zip(examples["instruction"], examples["input"])]
-    model_inputs = tokenizer(inputs, max_length=1024, truncation=True)
-
-    labels = tokenizer(text_target=examples["output"], max_length=512, truncation=True)
+    inputs = ['Instruction: ' + instruction + ' Context: ' + context for instruction, context in
+              zip(examples["instruction"], examples["input"])]
+    model_inputs = tokenizer(inputs, padding="max_length", max_length=1024, truncation=True)
+    labels = tokenizer(examples["output"], padding="max_length", max_length=1024, truncation=True)
 
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
+
 tokenized_data = data.map(preprocess_function, batched=True)
 
-# new metrci
+
 def compute_metrics(eval_preds):
-    preds, labels = eval_preds
+    labels = eval_preds.label_ids
+    preds = eval_preds.predictions
 
-    # decode preds and labels
-    labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    decoded_labels = [tokenizer.batch_decode(label, skip_special_tokens=True) for label in labels]
+    print(decoded_preds[:5])
+    result = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
+    return {"bleu_score": result['score']}  # Rename the score as 'bleu_score'
 
-    # rougeLSum expects newline after each sentence
-    decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
-    decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
-
-    result = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
-    return result
-
-
-# Set up training arguments
 training_args = Seq2SeqTrainingArguments(
-    output_dir = "AI_Tutor_Training/"+task_name + "_round2",
-    evaluation_strategy = "steps",
-    eval_steps = 200,
+    output_dir="AI_Tutor_Training/" + task_name + "_round2",
+    evaluation_strategy="steps",
+    eval_steps=200,
     learning_rate=2e-5,
     weight_decay=0.01,
     save_strategy='steps',
-    save_steps = 600,
-    num_train_epochs=100,  # specify the number of epochs you want here
-    per_device_train_batch_size=24,  # specify the batch size you want here
-    per_device_eval_batch_size=8,  # specify the evaluation batch size if you want it to be different from the training batch size
-    gradient_accumulation_steps=1,  # dafault is 1
-    eval_accumulation_steps=1,  # default is 1
-    # deepspeed="./ds_config_zero3.json",
-    fp16 = True,
+    save_steps=600,
+    num_train_epochs=100,
+    per_device_train_batch_size=12,
+    per_device_eval_batch_size=8,
+    gradient_accumulation_steps=1,
+    eval_accumulation_steps=1,
+    fp16=True,
     predict_with_generate=True,
+    logging_dir="./logs",     # Path to directory to save logs
+    logging_strategy='steps',   # Log after every X steps
+    logging_steps=100           # Set X to be 100
 )
 
-# Train the model
 trainer = Seq2SeqTrainer(
     model=model,
     tokenizer=tokenizer,
@@ -142,3 +135,7 @@ trainer.train()
 # deepspeed --include localhost:0,1,2,3 instructgpt.py --deepspeed ds_config_zero3.json
 # deepspeed --include localhost:0 instructgpt.py --deepspeed ds_config_zero3.json
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python instructgpt.py
+# tensorboard dev upload --logdir ./logs
+# --name yjh
+# --description yjh
+
