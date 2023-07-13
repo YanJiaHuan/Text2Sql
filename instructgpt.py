@@ -10,7 +10,7 @@ import random
 # Load pre-trained model and tokenizer
 tokenizer = AutoTokenizer.from_pretrained("gpt2")
 model = GPT2LMHeadModel.from_pretrained("gpt2")
-
+data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
 # Add padding token to the tokenizer
 tokenizer.pad_token = tokenizer.eos_token
 data_path = 'train_1890/'
@@ -76,9 +76,11 @@ training_args = Seq2SeqTrainingArguments(
 # Train the model
 trainer = Seq2SeqTrainer(
     model=model,
+    tokenizer=tokenizer,
     args=training_args,
     train_dataset=tokenized_data['train'],
     eval_dataset=tokenized_data['test'],
+    data_collator=data_collator,
     compute_metrics=compute_metrics,
 )
 
