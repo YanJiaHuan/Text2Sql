@@ -7,8 +7,8 @@ import torch
 import random
 
 # Load pre-trained model and tokenizer
-tokenizer = AutoTokenizer.from_pretrained("gpt2")
-model = GPT2LMHeadModel.from_pretrained("gpt2")
+tokenizer = AutoTokenizer.from_pretrained("vicgalle/gpt2-open-instruct-v1")
+model = GPT2LMHeadModel.from_pretrained("vicgalle/gpt2-open-instruct-v1")
 data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
 
 # Add padding token to the tokenizer
@@ -25,7 +25,8 @@ bleu_metric = load_metric('sacrebleu')
 
 
 def preprocess_function(examples):
-    inputs = ['Instruction: ' + instruction + ' Context: ' + context for instruction, context in
+    prompt = "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n"
+    inputs = [prompt + "### Instruction:\n" + instruction + "\n\n" + "### Input:\n" + context + "\n\n" for instruction, context in
               zip(examples["instruction"], examples["input"])]
     model_inputs = tokenizer(inputs, padding="max_length", max_length=1024, truncation=True)
     labels = tokenizer(examples["output"], padding="max_length", max_length=1024, truncation=True)
@@ -51,18 +52,18 @@ training_args = Seq2SeqTrainingArguments(
     output_dir="AI_Tutor_Training/" + task_name + "_round2",
     evaluation_strategy="steps",
     eval_steps=200,
-    learning_rate=2e-5,
-    weight_decay=0.01,
+    learning_rate=1e-4,
+    weight_decay=1e-5,
     save_strategy='steps',
     save_steps=600,
-    num_train_epochs=100,
+    num_train_epochs=500,
     per_device_train_batch_size=12,
     per_device_eval_batch_size=8,
     gradient_accumulation_steps=1,
     eval_accumulation_steps=1,
     fp16=True,
     predict_with_generate=True,
-    logging_dir="./logs",     # Path to directory to save logs
+    logging_dir="./logs_forAT",     # Path to directory to save logs
     logging_strategy='steps',   # Log after every X steps
     logging_steps=100           # Set X to be 100
 )
@@ -135,7 +136,7 @@ trainer.train()
 # deepspeed --include localhost:0,1,2,3 instructgpt.py --deepspeed ds_config_zero3.json
 # deepspeed --include localhost:0 instructgpt.py --deepspeed ds_config_zero3.json
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python instructgpt.py
-# tensorboard dev upload --logdir ./logs
+# tensorboard dev upload --logdir ./logs_forAT
 # --name yjh
 # --description yjh
 
