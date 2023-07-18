@@ -14,8 +14,8 @@ data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
 # Add padding token to the tokenizer
 tokenizer.pad_token = tokenizer.eos_token
 data_path = 'train_1890/'
-task_name = 'title_train'
-
+# task_name = 'title_train'
+task_name = 'background_train'
 # Load your dataset
 data = load_dataset('json', data_files=data_path + task_name + '.json')
 data = data['train'].train_test_split(test_size=0.1)
@@ -51,13 +51,13 @@ def compute_metrics(eval_preds):
 training_args = Seq2SeqTrainingArguments(
     output_dir="AI_Tutor_Training/" + task_name + "_round2",
     evaluation_strategy="steps",
-    eval_steps=200,
+    eval_steps=20,
     learning_rate=1e-4,
     weight_decay=1e-5,
     save_strategy='steps',
     save_steps=600,
     num_train_epochs=500,
-    per_device_train_batch_size=12,
+    per_device_train_batch_size=4,
     per_device_eval_batch_size=8,
     gradient_accumulation_steps=1,
     eval_accumulation_steps=1,
@@ -135,7 +135,7 @@ trainer.train()
 
 # deepspeed --include localhost:0,1,2,3 instructgpt.py --deepspeed ds_config_zero3.json
 # deepspeed --include localhost:0 instructgpt.py --deepspeed ds_config_zero3.json
-# CUDA_VISIBLE_DEVICES=0,1,2,3 python instructgpt.py
+# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python instructgpt.py
 # tensorboard dev upload --logdir ./logs_forAT
 # --name yjh
 # --description yjh
